@@ -1,0 +1,50 @@
+#pragma once
+
+#include "DebugMessenger.h"
+#include "Defines.h"
+#include "Device.h"
+#include "Swapchain.h"
+
+#include <string>
+
+class GLFWwindow;
+
+class SampleBase {
+public:
+    bool framebufferResized;
+    SampleBase(u32 width, u32 height, std::string const& name);
+
+    void run();
+
+protected:
+    Context context;
+
+private:
+    u32 width;
+    u32 height;
+    std::string name;
+    GLFWwindow* window;
+#ifdef _DEBUG
+    DebugMessenger messenger;
+#endif
+    Device device;
+    Swapchain swapchain;
+
+    void startup(u32 width, u32 height, std::string const& name);
+    void update();
+    void shutdown();
+
+    void createWindow(u32 width, u32 height, std::string const& name);
+    void createInstance();
+    void createSurface();
+    void createRenderPass();
+    virtual void createGraphicsPipeline() = 0;
+    void createFramebuffers();
+    void createCommandPool();
+    void allocateCommandBuffer();
+    virtual void recordCommandBuffer(VkCommandBuffer commandBuffer, u32 imageIndex) = 0;
+    void createSynchronizationObjects();
+    void drawFrame();
+
+    void destroySynchronizationObjects();
+};

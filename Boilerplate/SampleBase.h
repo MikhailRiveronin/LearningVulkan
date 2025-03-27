@@ -18,6 +18,7 @@ public:
 
 protected:
     Context context;
+    Buffer vertexBuffer;
 
 private:
     u32 width;
@@ -45,6 +46,10 @@ private:
     virtual void recordCommandBuffer(VkCommandBuffer commandBuffer, u32 imageIndex) = 0;
     void createSynchronizationObjects();
     void drawFrame();
+
+    virtual void createGeometry() = 0;
+    virtual void createVertexBuffer() = 0;
+    virtual void sampleSpecificShutdown() = 0;
 
     void destroySynchronizationObjects();
 };

@@ -20,3 +20,8 @@
 
 std::vector<u8> loadShaderBinary(std::string const& filename);
 VkShaderModule createShaderModule(Context& context, std::vector<u8> const& code);
+
+void createBuffer(Context& context, Buffer& buffer);
+void destroyBuffer(Context& context, Buffer& buffer);
+
+u32 findMemoryType(Context& context, VkMemoryRequirements const& requirements, VkMemoryPropertyFlags properties);

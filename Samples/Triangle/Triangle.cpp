@@ -3,6 +3,8 @@
 #include "Boilerplate/Types.h"
 #include "Boilerplate/Utils.h"
 
+#include <glm/glm.hpp>
+
 static VkShaderModule createShaderModule(Context& context, const std::vector<char>& code);
 
 class Triangle : public SampleBase {
@@ -11,6 +13,22 @@ public:
 
     void createGraphicsPipeline() override;
     void recordCommandBuffer(VkCommandBuffer commandBuffer, u32 imageIndex) override;
+
+private:
+    struct Vertex {
+        glm::vec2 position;
+        glm::vec3 color;
+
+        static VkVertexInputBindingDescription getBindingDescription();
+        static std::vector<VkVertexInputAttributeDescription> getAttributeDescription();
+    };
+
+    std::vector<Vertex> vertices;
+    Buffer vertexBuffer;
+
+    void createGeometry() override;
+    void createVertexBuffer() override;
+    void sampleSpecificShutdown() override;
 };
 
 Triangle::Triangle(u32 width, u32 height, std::string const& name) :
@@ -50,14 +68,29 @@ void Triangle::createGraphicsPipeline()
 
     shaderStageCreateInfos.push_back(std::move(fragmentShaderStageCreateInfo));
 
+    VkVertexInputBindingDescription vertexInputBindingDescription = {};
+    vertexInputBindingDescription.binding = 0;
+    vertexInputBindingDescription.stride = sizeof(Vertex);
+    vertexInputBindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+    VkVertexInputAttributeDescription vertexInputAttributeDescription[2] = {};
+    vertexInputAttributeDescription[0].location = 0;
+    vertexInputAttributeDescription[0].binding = 0;
+    vertexInputAttributeDescription[0].format = VK_FORMAT_R32G32_SFLOAT;
+    vertexInputAttributeDescription[0].offset = offsetof(Vertex, position);
+    vertexInputAttributeDescription[1].location = 1;
+    vertexInputAttributeDescription[1].binding = 0;
+    vertexInputAttributeDescription[1].format = VK_FORMAT_R32G32B32_SFLOAT;
+    vertexInputAttributeDescription[1].offset = offsetof(Vertex, color);
+
     VkPipelineVertexInputStateCreateInfo vertexInputStateCreateInfo = {};
     vertexInputStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
     vertexInputStateCreateInfo.pNext = nullptr;
     vertexInputStateCreateInfo.flags = 0;
-    vertexInputStateCreateInfo.vertexBindingDescriptionCount = 0;
-    vertexInputStateCreateInfo.pVertexBindingDescriptions = nullptr;
-    vertexInputStateCreateInfo.vertexAttributeDescriptionCount = 0;
-    vertexInputStateCreateInfo.pVertexAttributeDescriptions = nullptr;
+    vertexInputStateCreateInfo.vertexBindingDescriptionCount = 1;
+    vertexInputStateCreateInfo.pVertexBindingDescriptions = &vertexInputBindingDescription;
+    vertexInputStateCreateInfo.vertexAttributeDescriptionCount = 2;
+    vertexInputStateCreateInfo.pVertexAttributeDescriptions = vertexInputAttributeDescription;
 
     VkPipelineInputAssemblyStateCreateInfo inputAssemblyStateCreateInfo = {};
     inputAssemblyStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
@@ -145,7 +178,7 @@ void Triangle::createGraphicsPipeline()
     layoutCreateInfo.pushConstantRangeCount = 0;
     layoutCreateInfo.pPushConstantRanges = nullptr;
 
-    THROW_IF_FAILED(vkCreatePipelineLayout(context.device.device, &layoutCreateInfo, context.allocator, &context.graphicsPipeline.layout), __FILE__, __LINE__, "Failed to create pipeline layout");
+    THROW_IF_FAILED(vkCreatePipelineLayout(context.device.handle, &layoutCreateInfo, context.allocator, &context.graphicsPipeline.layout), __FILE__, __LINE__, "Failed to create pipeline layout");
 
     VkPipelineDynamicStateCreateInfo dynamicStateCreateInfo{};
     dynamicStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
@@ -175,10 +208,10 @@ void Triangle::createGraphicsPipeline()
     createInfo.basePipelineHandle = VK_NULL_HANDLE;
     createInfo.basePipelineIndex = 0;
 
-    THROW_IF_FAILED(vkCreateGraphicsPipelines(context.device.device, VK_NULL_HANDLE, 1, &createInfo, context.allocator, &context.graphicsPipeline.pipeline), __FILE__, __LINE__, "Failed to create graphics pipeline");
+    THROW_IF_FAILED(vkCreateGraphicsPipelines(context.device.handle, VK_NULL_HANDLE, 1, &createInfo, context.allocator, &context.graphicsPipeline.pipeline), __FILE__, __LINE__, "Failed to create graphics pipeline");
 
-    vkDestroyShaderModule(context.device.device, vertexShaderModule, context.allocator);
-    vkDestroyShaderModule(context.device.device, fragmentShaderModule, context.allocator);
+    vkDestroyShaderModule(context.device.handle, vertexShaderModule, context.allocator);
+    vkDestroyShaderModule(context.device.handle, fragmentShaderModule, context.allocator);
 }
 
 void Triangle::recordCommandBuffer(VkCommandBuffer commandBuffer, u32 imageIndex)
@@ -206,6 +239,10 @@ void Triangle::recordCommandBuffer(VkCommandBuffer commandBuffer, u32 imageIndex
 
     vkCmdBeginRenderPass(commandBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
     vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, context.graphicsPipeline.pipeline);
+
+    VkDeviceSize offsets[] = { 0 };
+    vkCmdBindVertexBuffers(commandBuffer, 0, 1, &vertexBuffer.handle, offsets);
+
     vkCmdDraw(commandBuffer, 3, 1, 0, 0);
     vkCmdEndRenderPass(commandBuffer);
 
@@ -215,4 +252,58 @@ void Triangle::recordCommandBuffer(VkCommandBuffer commandBuffer, u32 imageIndex
 std::unique_ptr<SampleBase> createSample()
 {
     return std::make_unique<Triangle>(1280, 720, "Triangle");
+}
+
+VkVertexInputBindingDescription Triangle::Vertex::getBindingDescription()
+{
+    VkVertexInputBindingDescription bindingDescription;
+    bindingDescription.binding = 0;
+    bindingDescription.stride = sizeof(Vertex);
+    bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+    return bindingDescription;
+}
+
+std::vector<VkVertexInputAttributeDescription> Triangle::Vertex::getAttributeDescription()
+{
+    std::vector<VkVertexInputAttributeDescription> attributeDescriptions(2);
+    attributeDescriptions[0].location = 0;
+    attributeDescriptions[0].binding = 0;
+    attributeDescriptions[0].format = VK_FORMAT_R32G32_SFLOAT;
+    attributeDescriptions[0].offset = offsetof(Vertex, position);
+    attributeDescriptions[1].location = 1;
+    attributeDescriptions[1].binding = 0;
+    attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
+    attributeDescriptions[1].offset = offsetof(Vertex, color);
+
+    return attributeDescriptions;
+}
+
+void Triangle::createGeometry()
+{
+    const std::vector<Vertex> vertices = {
+        {{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+        {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
+        {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}
+    };
+
+    this->vertices = vertices;
+}
+
+void Triangle::createVertexBuffer()
+{
+    vertexBuffer.size = vertices.size() * sizeof(vertices[0]);
+    vertexBuffer.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+    vertexBuffer.memoryProperties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+
+    createBuffer(context, vertexBuffer);
+
+    THROW_IF_FAILED(vkMapMemory(context.device.handle, vertexBuffer.memory, 0, vertexBuffer.size, 0, &vertexBuffer.mapped), __FILE__, __LINE__, "Failed to map memory");
+    memcpy(vertexBuffer.mapped, vertices.data(), vertexBuffer.size);
+    vkUnmapMemory(context.device.handle, vertexBuffer.memory);
+}
+
+void Triangle::sampleSpecificShutdown()
+{
+    destroyBuffer(context, vertexBuffer);
 }

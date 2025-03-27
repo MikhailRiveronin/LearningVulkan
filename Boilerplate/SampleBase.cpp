@@ -46,7 +46,8 @@ void SampleBase::startup(u32 width, u32 height, std::string const& name)
     createCommandPool();
     allocateCommandBuffer();
     createSynchronizationObjects();
-
+    createGeometry();
+    createVertexBuffer();
 }
 
 void SampleBase::update()
@@ -60,19 +61,21 @@ void SampleBase::update()
 
 void SampleBase::shutdown()
 {
-    vkDeviceWaitIdle(context.device.device);
+    vkDeviceWaitIdle(context.device.handle);
+
+    sampleSpecificShutdown();
 
     destroySynchronizationObjects();
-    vkDestroyCommandPool(context.device.device, context.commandBuffer.pool, context.allocator);
+    vkDestroyCommandPool(context.device.handle, context.commandBuffer.pool, context.allocator);
 
     for (auto& framebuffer : context.swapchain.framebuffers) {
-        vkDestroyFramebuffer(context.device.device, framebuffer, context.allocator);
+        vkDestroyFramebuffer(context.device.handle, framebuffer, context.allocator);
     }
     LOG_DEBUG("Framebuffers destroyed");
 
-    vkDestroyRenderPass(context.device.device, context.renderPass, context.allocator);
-    vkDestroyPipelineLayout(context.device.device, context.graphicsPipeline.layout, context.allocator);
-    vkDestroyPipeline(context.device.device, context.graphicsPipeline.pipeline, context.allocator);
+    vkDestroyRenderPass(context.device.handle, context.renderPass, context.allocator);
+    vkDestroyPipelineLayout(context.device.handle, context.graphicsPipeline.layout, context.allocator);
+    vkDestroyPipeline(context.device.handle, context.graphicsPipeline.pipeline, context.allocator);
 
     swapchain.destroy(context);
     device.destroy(context);
@@ -216,7 +219,7 @@ void SampleBase::createRenderPass()
     createInfo.dependencyCount = 1;
     createInfo.pDependencies = &subpassDependency;
 
-    THROW_IF_FAILED(vkCreateRenderPass(context.device.device, &createInfo, context.allocator, &context.renderPass), __FILE__, __LINE__, "Failed to create render pass");
+    THROW_IF_FAILED(vkCreateRenderPass(context.device.handle, &createInfo, context.allocator, &context.renderPass), __FILE__, __LINE__, "Failed to create render pass");
 }
 
 void SampleBase::createFramebuffers()
@@ -235,7 +238,7 @@ void SampleBase::createFramebuffers()
         createInfo.height = context.swapchain.extent.height;
         createInfo.layers = 1;
 
-        THROW_IF_FAILED(vkCreateFramebuffer(context.device.device, &createInfo, context.allocator, &context.swapchain.framebuffers[i]), __FILE__, __LINE__, "Failed to create framebuffer");
+        THROW_IF_FAILED(vkCreateFramebuffer(context.device.handle, &createInfo, context.allocator, &context.swapchain.framebuffers[i]), __FILE__, __LINE__, "Failed to create framebuffer");
     }
 }
 
@@ -247,7 +250,7 @@ void SampleBase::createCommandPool()
     createInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
     createInfo.queueFamilyIndex = context.device.queueFamilyIndices.graphics.value();
 
-    THROW_IF_FAILED(vkCreateCommandPool(context.device.device, &createInfo, context.allocator, &context.commandBuffer.pool), __FILE__, __LINE__, "Failed to create command pool");
+    THROW_IF_FAILED(vkCreateCommandPool(context.device.handle, &createInfo, context.allocator, &context.commandBuffer.pool), __FILE__, __LINE__, "Failed to create command pool");
 }
 
 void SampleBase::allocateCommandBuffer()
@@ -261,7 +264,7 @@ void SampleBase::allocateCommandBuffer()
     allocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
     allocateInfo.commandBufferCount = context.commandBuffer.buffers.size();
 
-    THROW_IF_FAILED(vkAllocateCommandBuffers(context.device.device, &allocateInfo, context.commandBuffer.buffers.data()), __FILE__, __LINE__, "Failed to allocate command buffers");
+    THROW_IF_FAILED(vkAllocateCommandBuffers(context.device.handle, &allocateInfo, context.commandBuffer.buffers.data()), __FILE__, __LINE__, "Failed to allocate command buffers");
 }
 
 void SampleBase::createSynchronizationObjects()
@@ -276,8 +279,8 @@ void SampleBase::createSynchronizationObjects()
     semaphoreCreateInfo.flags = 0;
 
     for (u32 i = 0; i < framesInFlight; ++i) {
-        THROW_IF_FAILED(vkCreateSemaphore(context.device.device, &semaphoreCreateInfo, context.allocator, &context.synchronization.imageAvailableSemaphores[i]), __FILE__, __LINE__, "Failed to create semaphore");
-        THROW_IF_FAILED(vkCreateSemaphore(context.device.device, &semaphoreCreateInfo, context.allocator, &context.synchronization.renderFinishedSemaphores[i]), __FILE__, __LINE__, "Failed to create semaphore");
+        THROW_IF_FAILED(vkCreateSemaphore(context.device.handle, &semaphoreCreateInfo, context.allocator, &context.synchronization.imageAvailableSemaphores[i]), __FILE__, __LINE__, "Failed to create semaphore");
+        THROW_IF_FAILED(vkCreateSemaphore(context.device.handle, &semaphoreCreateInfo, context.allocator, &context.synchronization.renderFinishedSemaphores[i]), __FILE__, __LINE__, "Failed to create semaphore");
     }
 
     VkFenceCreateInfo fenceCreateInfo = {};
@@ -286,7 +289,7 @@ void SampleBase::createSynchronizationObjects()
     fenceCreateInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
     for (u32 i = 0; i < framesInFlight; ++i) {
-        THROW_IF_FAILED(vkCreateFence(context.device.device, &fenceCreateInfo, context.allocator, &context.synchronization.fences[i]), __FILE__, __LINE__, "Failed to create fence");
+        THROW_IF_FAILED(vkCreateFence(context.device.handle, &fenceCreateInfo, context.allocator, &context.synchronization.fences[i]), __FILE__, __LINE__, "Failed to create fence");
     }
 }
 
@@ -300,17 +303,17 @@ void SampleBase::drawFrame()
         framebufferResized = false;
     }
 
-    THROW_IF_FAILED(vkWaitForFences(context.device.device, 1, &context.synchronization.fences[frameIndex], VK_TRUE, UINT64_MAX), __FILE__, __LINE__, "Failed to wait for fences");
+    THROW_IF_FAILED(vkWaitForFences(context.device.handle, 1, &context.synchronization.fences[frameIndex], VK_TRUE, UINT64_MAX), __FILE__, __LINE__, "Failed to wait for fences");
     
     u32 imageIndex;
-    auto result = vkAcquireNextImageKHR(context.device.device, context.swapchain.swapchain, UINT64_MAX, context.synchronization.imageAvailableSemaphores[frameIndex], VK_NULL_HANDLE, &imageIndex);
+    auto result = vkAcquireNextImageKHR(context.device.handle, context.swapchain.swapchain, UINT64_MAX, context.synchronization.imageAvailableSemaphores[frameIndex], VK_NULL_HANDLE, &imageIndex);
     if (result == VK_ERROR_OUT_OF_DATE_KHR) {
         return;
     } else {
         THROW_IF_FAILED(result, __FILE__, __LINE__, "Failed to acquire next image");
     }
 
-    THROW_IF_FAILED(vkResetFences(context.device.device, 1, &context.synchronization.fences[frameIndex]), __FILE__, __LINE__, "Failed to reset fences");
+    THROW_IF_FAILED(vkResetFences(context.device.handle, 1, &context.synchronization.fences[frameIndex]), __FILE__, __LINE__, "Failed to reset fences");
 
     vkResetCommandBuffer(context.commandBuffer.buffers[frameIndex], 0);
     recordCommandBuffer(context.commandBuffer.buffers[frameIndex], imageIndex);
@@ -355,9 +358,9 @@ void SampleBase::drawFrame()
 void SampleBase::destroySynchronizationObjects()
 {
     for (u32 i = 0; i < framesInFlight; ++i) {
-        vkDestroySemaphore(context.device.device, context.synchronization.imageAvailableSemaphores[i], context.allocator);
-        vkDestroySemaphore(context.device.device, context.synchronization.renderFinishedSemaphores[i], context.allocator);
-        vkDestroyFence(context.device.device, context.synchronization.fences[i], context.allocator);
+        vkDestroySemaphore(context.device.handle, context.synchronization.imageAvailableSemaphores[i], context.allocator);
+        vkDestroySemaphore(context.device.handle, context.synchronization.renderFinishedSemaphores[i], context.allocator);
+        vkDestroyFence(context.device.handle, context.synchronization.fences[i], context.allocator);
     }
 }
 

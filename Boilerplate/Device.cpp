@@ -15,7 +15,7 @@ static void checkExtensionSupport(VkPhysicalDevice physicalDevice, std::vector<c
 
 void Device::create(Context& context)
 {
-    selectPhysicalDevice(context);
+    findPhysicalDevice(context);
 
     std::set<u32> uniqueQueueFamilyIndices = { context.device.queueFamilyIndices.graphics.value(), context.device.queueFamilyIndices.present.value() };
     float queuePriority = 1.f;
@@ -33,7 +33,10 @@ void Device::create(Context& context)
     }
 
     std::vector<char const*> requiredExtensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
-    checkExtensionSupport(physicalDevice, requiredExtensions);
+    checkExtensionSupport(context.device.physicalDevice, requiredExtensions);
+
+    VkPhysicalDeviceFeatures physicalDeviceFeatures = {};
+    physicalDeviceFeatures.samplerAnisotropy = VK_TRUE;
 
     VkDeviceCreateInfo deviceCreateInfo = {};
     deviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
@@ -45,23 +48,23 @@ void Device::create(Context& context)
     deviceCreateInfo.ppEnabledLayerNames = nullptr;
     deviceCreateInfo.enabledExtensionCount = requiredExtensions.size();
     deviceCreateInfo.ppEnabledExtensionNames = requiredExtensions.data();
-    deviceCreateInfo.pEnabledFeatures = nullptr;
+    deviceCreateInfo.pEnabledFeatures = &physicalDeviceFeatures;
 
-    THROW_IF_FAILED(vkCreateDevice(physicalDevice, &deviceCreateInfo, context.allocator, &context.device.device), __FILE__, __LINE__, "Failed to create device");
+    THROW_IF_FAILED(vkCreateDevice(context.device.physicalDevice, &deviceCreateInfo, context.allocator, &context.device.handle), __FILE__, __LINE__, "Failed to create device");
     LOG_INFO("Device successfully created");
 
-    vkGetDeviceQueue(context.device.device, context.device.queueFamilyIndices.graphics.value(), 0, &context.device.queues.graphics);
+    vkGetDeviceQueue(context.device.handle, context.device.queueFamilyIndices.graphics.value(), 0, &context.device.queues.graphics);
     // vkGetDeviceQueue(context.device.device, context.device.queueFamilyIndices.transfer.value(), 0, &context.device.queues.transfer);
-    vkGetDeviceQueue(context.device.device, context.device.queueFamilyIndices.present.value(), 0, &context.device.queues.present);
+    vkGetDeviceQueue(context.device.handle, context.device.queueFamilyIndices.present.value(), 0, &context.device.queues.present);
 }
 
 void Device::destroy(Context& context)
 {
-    vkDestroyDevice(context.device.device, context.allocator);
+    vkDestroyDevice(context.device.handle, context.allocator);
     LOG_DEBUG("Device destroyed");
 }
 
-void Device::selectPhysicalDevice(Context& context)
+void Device::findPhysicalDevice(Context& context)
 {
     u32 deviceCount = 0;
     THROW_IF_FAILED(vkEnumeratePhysicalDevices(context.instance, &deviceCount, nullptr), __FILE__, __LINE__, "No Vulkan devices found");
@@ -81,9 +84,9 @@ void Device::selectPhysicalDevice(Context& context)
             // VkPhysicalDeviceMemoryProperties memoryProperties;
             // vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memoryProperties);
 
-            physicalDevice = physicalDevices[i];
-            queryQueueFamilyIndices(physicalDevice, context.surface, context.device.queueFamilyIndices);
-            querySwapchainSupport(physicalDevice, context.surface, context.swapchain.support);
+            context.device.physicalDevice = physicalDevices[i];
+            queryQueueFamilyIndices(context.device.physicalDevice, context.surface, context.device.queueFamilyIndices);
+            querySwapchainSupport(context.device.physicalDevice, context.surface, context.swapchain.support);
 
             char buffer[1024];
             char const* indent = "                      ";

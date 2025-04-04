@@ -8,8 +8,6 @@
 #include <iostream>
 #include <vector>
 
-constexpr const u32 framesInFlight = 2;
-
 static void glfwErrorCallback(int error, char const* description);
 static void framebufferSizeCallback(GLFWwindow* window, int width, int height);
 static void checkLayerSupport(std::vector<char const*> const& requiredLayers);
@@ -40,14 +38,21 @@ void SampleBase::startup(u32 width, u32 height, std::string const& name)
     createSurface();
     device.create(context);
     swapchain.create(context, window);
+    createDepthBuffer();
     createRenderPass();
-    createFramebuffers();
+    createGeometry();
+    createDescriptorSetLayout();
     createGraphicsPipeline();
     createCommandPool();
     allocateCommandBuffer();
+    createUniformBuffers();
+    createTextureImage();
+    createDescriptorPool();
+    allocateDescriptorSets();
     createSynchronizationObjects();
-    createGeometry();
     createVertexBuffer();
+    createIndexBuffer();
+    createFramebuffers();
 }
 
 void SampleBase::update()
@@ -67,6 +72,8 @@ void SampleBase::shutdown()
 
     destroySynchronizationObjects();
     vkDestroyCommandPool(context.device.handle, context.commandBuffer.pool, context.allocator);
+
+    destroyImage(context, depthBuffer);
 
     for (auto& framebuffer : context.swapchain.framebuffers) {
         vkDestroyFramebuffer(context.device.handle, framebuffer, context.allocator);
@@ -172,6 +179,8 @@ void SampleBase::createSurface()
 
 void SampleBase::createRenderPass()
 {
+    std::vector<VkAttachmentDescription> attachments;
+
     VkAttachmentDescription colorAttachment = {};
     colorAttachment.flags = 0;
     colorAttachment.format = context.swapchain.format;
@@ -183,9 +192,34 @@ void SampleBase::createRenderPass()
     colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
     colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 
+    attachments.push_back(std::move(colorAttachment));
+
+    VkAttachmentDescription depthAttachment = {};
+    depthAttachment.flags = 0;
+    depthAttachment.format = depthBuffer.format;
+    depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+    depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    depthAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+    attachments.push_back(std::move(depthAttachment));
+
+    std::vector<VkAttachmentReference> attachmentReferences;
+
     VkAttachmentReference colorAttachmentReference;
     colorAttachmentReference.attachment = 0;
     colorAttachmentReference.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+    attachmentReferences.push_back(std::move(colorAttachmentReference));
+
+    VkAttachmentReference depthAttachmentReference;
+    depthAttachmentReference.attachment = 1;
+    depthAttachmentReference.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+    attachmentReferences.push_back(std::move(depthAttachmentReference));
 
     VkSubpassDescription subpass;
     subpass.flags = 0;
@@ -195,25 +229,25 @@ void SampleBase::createRenderPass()
     subpass.colorAttachmentCount = 1;
     subpass.pColorAttachments = &colorAttachmentReference;
     subpass.pResolveAttachments = nullptr;
-    subpass.pDepthStencilAttachment = nullptr;
+    subpass.pDepthStencilAttachment = &depthAttachmentReference;
     subpass.preserveAttachmentCount = 0;
     subpass.pPreserveAttachments = nullptr;
 
     VkSubpassDependency subpassDependency = {};
     subpassDependency.srcSubpass = VK_SUBPASS_EXTERNAL;
     subpassDependency.dstSubpass = 0;
-    subpassDependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    subpassDependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    subpassDependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+    subpassDependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
     subpassDependency.srcAccessMask = 0;
-    subpassDependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    subpassDependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
     subpassDependency.dependencyFlags = 0;
 
     VkRenderPassCreateInfo createInfo;
     createInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
     createInfo.pNext = nullptr;
     createInfo.flags = 0;
-    createInfo.attachmentCount = 1;
-    createInfo.pAttachments = &colorAttachment;
+    createInfo.attachmentCount = attachments.size();
+    createInfo.pAttachments = attachments.data();
     createInfo.subpassCount = 1;
     createInfo.pSubpasses = &subpass;
     createInfo.dependencyCount = 1;
@@ -227,13 +261,15 @@ void SampleBase::createFramebuffers()
     context.swapchain.framebuffers.resize(context.swapchain.imageViews.size());
 
     for (u32 i = 0; i < context.swapchain.imageViews.size(); ++i) {
+        std::vector<VkImageView> attachments = { context.swapchain.imageViews[i], depthBuffer.view };
+
         VkFramebufferCreateInfo createInfo = {};
         createInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
         createInfo.pNext = nullptr;
         createInfo.flags = 0;
         createInfo.renderPass = context.renderPass;
-        createInfo.attachmentCount = 1;
-        createInfo.pAttachments = &context.swapchain.imageViews[i];
+        createInfo.attachmentCount = attachments.size();
+        createInfo.pAttachments = attachments.data();
         createInfo.width = context.swapchain.extent.width;
         createInfo.height = context.swapchain.extent.height;
         createInfo.layers = 1;
@@ -303,8 +339,10 @@ void SampleBase::drawFrame()
         framebufferResized = false;
     }
 
+    updateUniformBuffer(frameIndex);
+
     THROW_IF_FAILED(vkWaitForFences(context.device.handle, 1, &context.synchronization.fences[frameIndex], VK_TRUE, UINT64_MAX), __FILE__, __LINE__, "Failed to wait for fences");
-    
+
     u32 imageIndex;
     auto result = vkAcquireNextImageKHR(context.device.handle, context.swapchain.swapchain, UINT64_MAX, context.synchronization.imageAvailableSemaphores[frameIndex], VK_NULL_HANDLE, &imageIndex);
     if (result == VK_ERROR_OUT_OF_DATE_KHR) {
@@ -316,7 +354,7 @@ void SampleBase::drawFrame()
     THROW_IF_FAILED(vkResetFences(context.device.handle, 1, &context.synchronization.fences[frameIndex]), __FILE__, __LINE__, "Failed to reset fences");
 
     vkResetCommandBuffer(context.commandBuffer.buffers[frameIndex], 0);
-    recordCommandBuffer(context.commandBuffer.buffers[frameIndex], imageIndex);
+    recordCommandBuffer(context.commandBuffer.buffers[frameIndex], imageIndex, frameIndex);
 
     std::vector<VkPipelineStageFlags> pipelineStageFlags;
     pipelineStageFlags.push_back(VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
@@ -343,7 +381,7 @@ void SampleBase::drawFrame()
     presentInfo.pSwapchains = &context.swapchain.swapchain;
     presentInfo.pImageIndices = &imageIndex;
     presentInfo.pResults = nullptr;
-    
+
     frameIndex = (frameIndex + 1) % framesInFlight;
 
     result = vkQueuePresentKHR(context.device.queues.present, &presentInfo);
@@ -353,6 +391,20 @@ void SampleBase::drawFrame()
     // } else {
     //     THROW_IF_FAILED(result, __FILE__, __LINE__, "Failed to present");
     // }
+}
+
+void SampleBase::createDepthBuffer()
+{
+    depthBuffer.width = context.swapchain.extent.width;
+    depthBuffer.height = context.swapchain.extent.height;
+    depthBuffer.format = VK_FORMAT_D32_SFLOAT_S8_UINT;
+    depthBuffer.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+    depthBuffer.memoryProperties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+    depthBuffer.aspect = VK_IMAGE_ASPECT_DEPTH_BIT;
+
+    createImage(context, depthBuffer);
+    createImageView(context, depthBuffer);
+
 }
 
 void SampleBase::destroySynchronizationObjects()

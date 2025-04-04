@@ -12,7 +12,5 @@ public:
     void destroy(Context& context);
 
 private:
-    VkPhysicalDevice physicalDevice;
-
-    void selectPhysicalDevice(Context& context);
+    void findPhysicalDevice(Context& context);
 };

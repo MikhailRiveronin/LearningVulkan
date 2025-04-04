@@ -19,6 +19,7 @@ public:
 protected:
     Context context;
     Buffer vertexBuffer;
+    Image depthBuffer;
 
 private:
     u32 width;
@@ -39,17 +40,27 @@ private:
     void createInstance();
     void createSurface();
     void createRenderPass();
+    virtual void createDescriptorSetLayout() = 0;
     virtual void createGraphicsPipeline() = 0;
+    virtual void createUniformBuffers() = 0;
+    virtual void createDescriptorPool() = 0;
+    virtual void allocateDescriptorSets() = 0;
     void createFramebuffers();
     void createCommandPool();
     void allocateCommandBuffer();
-    virtual void recordCommandBuffer(VkCommandBuffer commandBuffer, u32 imageIndex) = 0;
+    virtual void recordCommandBuffer(VkCommandBuffer commandBuffer, u32 imageIndex, u32 frameIndex) = 0;
     void createSynchronizationObjects();
     void drawFrame();
 
     virtual void createGeometry() = 0;
     virtual void createVertexBuffer() = 0;
+    virtual void createIndexBuffer() = 0;
     virtual void sampleSpecificShutdown() = 0;
+
+    virtual void updateUniformBuffer(u32 frameIndex) = 0;
+
+    virtual void createTextureImage() = 0;
+    void createDepthBuffer();
 
     void destroySynchronizationObjects();
 };

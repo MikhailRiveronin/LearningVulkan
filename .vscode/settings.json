@@ -1,0 +1,19 @@
+{
+    "C_Cpp.default.compilerPath": "cl.exe",
+    "files.associations": {
+        "*.usf": "hlsl",
+        "*.ush": "hlsl",
+        "vector": "cpp",
+        "array": "cpp",
+        "format": "cpp",
+        "initializer_list": "cpp",
+        "list": "cpp",
+        "span": "cpp",
+        "utility": "cpp",
+        "xhash": "cpp",
+        "xstring": "cpp",
+        "xtree": "cpp",
+        "xutility": "cpp",
+        "type_traits": "cpp"
+    }
+}

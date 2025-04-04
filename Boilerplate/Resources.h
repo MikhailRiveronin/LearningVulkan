@@ -13,9 +13,9 @@ struct Globals
     VkCommandBuffer commandBuffer;
 };
 
-struct BufferInfo
+struct Buffer
 {
-    VkBuffer buffer = VK_NULL_HANDLE;
+    VkBuffer handle = VK_NULL_HANDLE;
     VkDeviceMemory deviceMemory = VK_NULL_HANDLE;
     VkDescriptorSet descriptorSet = VK_NULL_HANDLE;
     VkDescriptorBufferInfo descriptorBufferInfo = {};

@@ -49,13 +49,13 @@ void Swapchain::create(Context& context, GLFWwindow* window)
     createInfo.clipped = VK_TRUE;
     createInfo.oldSwapchain = VK_NULL_HANDLE;
 
-    THROW_IF_FAILED(vkCreateSwapchainKHR(context.device.device, &createInfo, context.allocator, &context.swapchain.swapchain), __FILE__, __LINE__, "Failed to create swap chain");
+    THROW_IF_FAILED(vkCreateSwapchainKHR(context.device.handle, &createInfo, context.allocator, &context.swapchain.swapchain), __FILE__, __LINE__, "Failed to create swap chain");
     LOG_DEBUG("Swapchain successfully created");
 
     imageCount = 0;
-    THROW_IF_FAILED(vkGetSwapchainImagesKHR(context.device.device, context.swapchain.swapchain, &imageCount, nullptr), __FILE__, __LINE__, "Failed to get swap chain images");
+    THROW_IF_FAILED(vkGetSwapchainImagesKHR(context.device.handle, context.swapchain.swapchain, &imageCount, nullptr), __FILE__, __LINE__, "Failed to get swap chain images");
     context.swapchain.images.resize(imageCount);
-    THROW_IF_FAILED(vkGetSwapchainImagesKHR(context.device.device, context.swapchain.swapchain, &imageCount, context.swapchain.images.data()), __FILE__, __LINE__, "Failed to get swap chain images");
+    THROW_IF_FAILED(vkGetSwapchainImagesKHR(context.device.handle, context.swapchain.swapchain, &imageCount, context.swapchain.images.data()), __FILE__, __LINE__, "Failed to get swap chain images");
 
     context.swapchain.format = format.format;
     context.swapchain.extent = extent;
@@ -77,18 +77,18 @@ void Swapchain::create(Context& context, GLFWwindow* window)
         imageViewCreateInfo.subresourceRange.baseArrayLayer = 0;
         imageViewCreateInfo.subresourceRange.layerCount = 1;
 
-        THROW_IF_FAILED(vkCreateImageView(context.device.device, &imageViewCreateInfo, context.allocator, &context.swapchain.imageViews[i]), __FILE__, __LINE__, "Failed to create image view");
+        THROW_IF_FAILED(vkCreateImageView(context.device.handle, &imageViewCreateInfo, context.allocator, &context.swapchain.imageViews[i]), __FILE__, __LINE__, "Failed to create image view");
     }
 }
 
 void Swapchain::destroy(Context& context)
 {
     for (auto& imageView : context.swapchain.imageViews) {
-        vkDestroyImageView(context.device.device, imageView, context.allocator);
+        vkDestroyImageView(context.device.handle, imageView, context.allocator);
     }
     LOG_DEBUG("Image views destroyed");
 
-    vkDestroySwapchainKHR(context.device.device, context.swapchain.swapchain, context.allocator);
+    vkDestroySwapchainKHR(context.device.handle, context.swapchain.swapchain, context.allocator);
     LOG_DEBUG("Swapchain destroyed");
 }
 
@@ -96,10 +96,10 @@ void Swapchain::recreate(Context& context, GLFWwindow* window)
 {
     LOG_DEBUG("Swapchain recreating...");
 
-    vkDeviceWaitIdle(context.device.device);
+    vkDeviceWaitIdle(context.device.handle);
 
     for (auto& framebuffer : context.swapchain.framebuffers) {
-        vkDestroyFramebuffer(context.device.device, framebuffer, context.allocator);
+        vkDestroyFramebuffer(context.device.handle, framebuffer, context.allocator);
     }
     LOG_DEBUG("Framebuffers destroyed");
 

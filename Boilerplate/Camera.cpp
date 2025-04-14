@@ -1,0 +1,73 @@
+#include "Camera.h"
+#include "KeyCodes.h"
+
+#include <glm/gtc/matrix_transform.hpp>
+#include <algorithm>
+
+Camera::Camera(Globals const& globals, glm::vec3 const& pos) :
+    pos(pos),
+    yaw(-glm::half_pi<float>()),
+    pitch(0.f),
+    mouseSensitivity(0.001f),
+    movementSpeed(0.1f)
+{
+    recalculateViewMatrix();
+    matrices.proj = glm::perspective(glm::quarter_pi<float>(), (float)globals.swapchain.extent.width / (float)globals.swapchain.extent.height, 0.1f, 100.f);
+}
+
+void Camera::onNotify(EventType type, EventContext context)
+{
+    switch (type) {
+    case EventType::LEFT_BUTTON_DOWN:
+        lastPos.x = context.mousePos[0];
+        lastPos.y = context.mousePos[1];
+        return;
+
+    case EventType::MOUSE_MOVE: {
+        i16 xOffset = context.mousePos[0] - lastPos.x;
+        i16 yOffset = context.mousePos[1] - lastPos.y;
+        lastPos.x = context.mousePos[0];
+        lastPos.y = context.mousePos[1];
+        yaw += (float)xOffset * mouseSensitivity;
+        pitch += (float)yOffset * mouseSensitivity;
+        pitch = std::clamp(pitch, -89.f, 89.f);
+
+        recalculateViewMatrix();
+        return;
+    }
+
+    case EventType::KEY_DOWN:
+        switch (context.keyCodes[0]) {
+        case KEY_CODE_W:
+            pos += target * movementSpeed;
+            break;
+
+        case KEY_CODE_S:
+            pos -= target * movementSpeed;
+            break;
+
+        case KEY_CODE_A:
+            pos -= right * movementSpeed;
+            break;
+
+        case KEY_CODE_D:
+            pos += right * movementSpeed;
+            break;
+
+        default:
+            break;
+        }
+        recalculateViewMatrix();
+        return;
+
+    default:
+        break;
+    }
+}
+
+void Camera::recalculateViewMatrix()
+{
+    target = glm::normalize(glm::vec3(cos(yaw) * cos(pitch), sin(pitch), sin(yaw) * cos(pitch)));
+    right = glm::normalize(glm::cross(target, glm::vec3(0.f, -1.f, 0.f)));
+    matrices.view = glm::lookAt(pos, pos + target, glm::vec3(0.f, -1.f, 0.f));
+}

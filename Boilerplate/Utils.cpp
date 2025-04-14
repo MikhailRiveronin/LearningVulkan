@@ -18,7 +18,7 @@ std::vector<u8> loadShaderBinary(std::string const& filename)
     return buffer;
 }
 
-VkShaderModule createShaderModule(Context& context, std::vector<u8> const& code)
+VkShaderModule createShaderModule(Globals& globals, std::vector<u8> const& code)
 {
     VkShaderModuleCreateInfo createInfo = {};
     createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
@@ -28,12 +28,12 @@ VkShaderModule createShaderModule(Context& context, std::vector<u8> const& code)
     createInfo.pCode = (const u32*)code.data();
 
     VkShaderModule module;
-    THROW_IF_FAILED(vkCreateShaderModule(context.device.handle, &createInfo, context.allocator, &module), __FILE__, __LINE__, "Failed to create shader module");
+    THROW_IF_FAILED(vkCreateShaderModule(globals.device.handle, &createInfo, globals.allocator, &module), __FILE__, __LINE__, "Failed to create shader module");
 
     return module;
 }
 
-void createBuffer(Context& context, Buffer& buffer)
+void createBuffer(Globals& globals, Buffer& buffer)
 {
     VkBufferCreateInfo createInfo = {};
     createInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -45,30 +45,30 @@ void createBuffer(Context& context, Buffer& buffer)
     createInfo.queueFamilyIndexCount = buffer.queueFamilyIndexCount;
     createInfo.pQueueFamilyIndices = buffer.queueFamilyIndices;
 
-    THROW_IF_FAILED(vkCreateBuffer(context.device.handle, &createInfo, context.allocator, &buffer.handle), __FILE__, __LINE__, "Failed to create buffer");
+    THROW_IF_FAILED(vkCreateBuffer(globals.device.handle, &createInfo, globals.allocator, &buffer.handle), __FILE__, __LINE__, "Failed to create buffer");
 
     VkMemoryRequirements memoryRequirements;
-    vkGetBufferMemoryRequirements(context.device.handle, buffer.handle, &memoryRequirements);
+    vkGetBufferMemoryRequirements(globals.device.handle, buffer.handle, &memoryRequirements);
 
     VkMemoryAllocateInfo allocateInfo = {};
     allocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
     allocateInfo.pNext = nullptr;
     allocateInfo.allocationSize = memoryRequirements.size;
-    allocateInfo.memoryTypeIndex = findMemoryType(context, memoryRequirements, buffer.memoryProperties);
+    allocateInfo.memoryTypeIndex = findMemoryType(globals, memoryRequirements, buffer.memoryProperties);
 
-    THROW_IF_FAILED(vkAllocateMemory(context.device.handle, &allocateInfo, context.allocator, &buffer.memory), __FILE__, __LINE__, "Failed to allocate memory");
-    THROW_IF_FAILED(vkBindBufferMemory(context.device.handle, buffer.handle, buffer.memory, buffer.memoryOffset), __FILE__, __LINE__, "Failed to bind buffer memory");
+    THROW_IF_FAILED(vkAllocateMemory(globals.device.handle, &allocateInfo, globals.allocator, &buffer.memory), __FILE__, __LINE__, "Failed to allocate memory");
+    THROW_IF_FAILED(vkBindBufferMemory(globals.device.handle, buffer.handle, buffer.memory, buffer.memoryOffset), __FILE__, __LINE__, "Failed to bind buffer memory");
 }
 
-void destroyBuffer(Context& context, Buffer& buffer)
+void destroyBuffer(Globals& globals, Buffer& buffer)
 {
-    vkDestroyBuffer(context.device.handle, buffer.handle, context.allocator);
-    vkFreeMemory(context.device.handle, buffer.memory, context.allocator);
+    vkDestroyBuffer(globals.device.handle, buffer.handle, globals.allocator);
+    vkFreeMemory(globals.device.handle, buffer.memory, globals.allocator);
 }
 
-void copyBuffer(Context& context, Buffer& srcBuffer, Buffer& dstBuffer)
+void copyBuffer(Globals& globals, Buffer& srcBuffer, Buffer& dstBuffer)
 {
-    auto commandBuffer = beginCommandBufferOneTimeSubmit(context);
+    auto commandBuffer = beginCommandBufferOneTimeSubmit(globals);
 
     VkBufferCopy bufferCopy = {};
     bufferCopy.srcOffset = 0;
@@ -77,12 +77,12 @@ void copyBuffer(Context& context, Buffer& srcBuffer, Buffer& dstBuffer)
 
     vkCmdCopyBuffer(commandBuffer, srcBuffer.handle, dstBuffer.handle, 1, &bufferCopy);
 
-    endCommandBufferOneTimeSubmit(context, commandBuffer);
+    endCommandBufferOneTimeSubmit(globals, commandBuffer);
 }
 
-void copyBufferToImage(Context& context, Buffer& buffer, Image& image)
+void copyBufferToImage(Globals& globals, Buffer& buffer, Image& image)
 {
-    auto commandBuffer = beginCommandBufferOneTimeSubmit(context);
+    auto commandBuffer = beginCommandBufferOneTimeSubmit(globals);
 
     VkBufferImageCopy copy = {};
     copy.bufferOffset = 0;
@@ -97,10 +97,10 @@ void copyBufferToImage(Context& context, Buffer& buffer, Image& image)
 
     vkCmdCopyBufferToImage(commandBuffer, buffer.handle, image.handle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy);
 
-    endCommandBufferOneTimeSubmit(context, commandBuffer);
+    endCommandBufferOneTimeSubmit(globals, commandBuffer);
 }
 
-void createImage(Context& context, Image& image)
+void createImage(Globals& globals, Image& image)
 {
     VkImageCreateInfo createInfo = {};
     createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -119,28 +119,28 @@ void createImage(Context& context, Image& image)
     createInfo.pQueueFamilyIndices = image.queueIndices;
     createInfo.initialLayout = image.layout;
 
-    THROW_IF_FAILED(vkCreateImage(context.device.handle, &createInfo, context.allocator, &image.handle), __FILE__, __LINE__, "Failed to create image");
+    THROW_IF_FAILED(vkCreateImage(globals.device.handle, &createInfo, globals.allocator, &image.handle), __FILE__, __LINE__, "Failed to create image");
 
     VkMemoryRequirements memoryRequirements;
-    vkGetImageMemoryRequirements(context.device.handle, image.handle, &memoryRequirements);
+    vkGetImageMemoryRequirements(globals.device.handle, image.handle, &memoryRequirements);
 
     VkMemoryAllocateInfo allocateInfo = {};
     allocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
     allocateInfo.pNext = nullptr;
     allocateInfo.allocationSize = memoryRequirements.size;
-    allocateInfo.memoryTypeIndex = findMemoryType(context, memoryRequirements, image.memoryProperties);
+    allocateInfo.memoryTypeIndex = findMemoryType(globals, memoryRequirements, image.memoryProperties);
 
-    THROW_IF_FAILED(vkAllocateMemory(context.device.handle, &allocateInfo, context.allocator, &image.memory), __FILE__, __LINE__, "Failed to allocate memory");
-    THROW_IF_FAILED(vkBindImageMemory(context.device.handle, image.handle, image.memory, 0), __FILE__, __LINE__, "Failed to bind image memory");
+    THROW_IF_FAILED(vkAllocateMemory(globals.device.handle, &allocateInfo, globals.allocator, &image.memory), __FILE__, __LINE__, "Failed to allocate memory");
+    THROW_IF_FAILED(vkBindImageMemory(globals.device.handle, image.handle, image.memory, 0), __FILE__, __LINE__, "Failed to bind image memory");
 }
 
-void destroyImage(Context& context, Image& image)
+void destroyImage(Globals const& globals, Image const& image)
 {
-    vkDestroyImage(context.device.handle, image.handle, context.allocator);
-    vkFreeMemory(context.device.handle, image.memory, context.allocator);
+    vkDestroyImage(globals.device.handle, image.handle, globals.allocator);
+    vkFreeMemory(globals.device.handle, image.memory, globals.allocator);
 }
 
-void createImageView(Context& context, Image& image)
+void createImageView(Globals& globals, Image& image)
 {
     VkImageViewCreateInfo createInfo = {};
     createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -156,12 +156,12 @@ void createImageView(Context& context, Image& image)
     createInfo.subresourceRange.baseArrayLayer = 0;
     createInfo.subresourceRange.layerCount = image.arrayLayers;
 
-    THROW_IF_FAILED(vkCreateImageView(context.device.handle, &createInfo, context.allocator, &image.view), __FILE__, __LINE__, "Failed to create image view");
+    THROW_IF_FAILED(vkCreateImageView(globals.device.handle, &createInfo, globals.allocator, &image.view), __FILE__, __LINE__, "Failed to create image view");
 }
 
-void transitionImageLayout(Context& context, Image& image, VkImageLayout oldLayout, VkImageLayout newLayout)
+void transitionImageLayout(Globals& globals, Image& image, VkImageLayout oldLayout, VkImageLayout newLayout)
 {
-    auto commandBuffer = beginCommandBufferOneTimeSubmit(context);
+    auto commandBuffer = beginCommandBufferOneTimeSubmit(globals);
 
     VkAccessFlags srcAccessMask;
     VkAccessFlags dstAccessMask;
@@ -200,14 +200,11 @@ void transitionImageLayout(Context& context, Image& image, VkImageLayout oldLayo
     vkCmdPipelineBarrier(commandBuffer, srcStageMask, dstStageMask, 0, 0, nullptr, 0, nullptr, 1, &barrier);
 
 
-    endCommandBufferOneTimeSubmit(context, commandBuffer);
+    endCommandBufferOneTimeSubmit(globals, commandBuffer);
 }
 
-void createSampler(Context& context, Sampler& sampler)
+void createSampler(Globals& globals, Sampler& sampler)
 {
-    VkPhysicalDeviceProperties physicalDeviceProperties = {};
-    vkGetPhysicalDeviceProperties(context.device.physicalDevice, &physicalDeviceProperties);
-
     VkSamplerCreateInfo createInfo = {};
     createInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
     createInfo.pNext = nullptr;
@@ -220,7 +217,7 @@ void createSampler(Context& context, Sampler& sampler)
     createInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
     createInfo.mipLodBias = 0.f;
     createInfo.anisotropyEnable = VK_TRUE;
-    createInfo.maxAnisotropy = physicalDeviceProperties.limits.maxSamplerAnisotropy;
+    createInfo.maxAnisotropy = globals.device.support.properties.limits.maxSamplerAnisotropy;
     createInfo.compareEnable = VK_FALSE;
     createInfo.compareOp = VK_COMPARE_OP_NEVER;
     createInfo.minLod = 0.f;
@@ -228,16 +225,13 @@ void createSampler(Context& context, Sampler& sampler)
     createInfo.borderColor = VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK;
     createInfo.unnormalizedCoordinates = VK_FALSE;
 
-    THROW_IF_FAILED(vkCreateSampler(context.device.handle, &createInfo, context.allocator, &sampler.handle), __FILE__, __LINE__, "Failed to create sampler");
+    THROW_IF_FAILED(vkCreateSampler(globals.device.handle, &createInfo, globals.allocator, &sampler.handle), __FILE__, __LINE__, "Failed to create sampler");
 }
 
-u32 findMemoryType(Context& context, VkMemoryRequirements const& requirements, VkMemoryPropertyFlags properties)
+u32 findMemoryType(Globals& globals, VkMemoryRequirements const& requirements, VkMemoryPropertyFlags properties)
 {
-    VkPhysicalDeviceMemoryProperties memoryProperties;
-    vkGetPhysicalDeviceMemoryProperties(context.device.physicalDevice, &memoryProperties);
-
-    for (uint32_t i = 0; i < memoryProperties.memoryTypeCount; ++i) {
-        if ((requirements.memoryTypeBits & (1 << i)) && ((memoryProperties.memoryTypes[i].propertyFlags & properties) == properties)) {
+    for (uint32_t i = 0; i < globals.device.support.memoryProperties.memoryTypeCount; ++i) {
+        if ((requirements.memoryTypeBits & (1 << i)) && ((globals.device.support.memoryProperties.memoryTypes[i].propertyFlags & properties) == properties)) {
             return i;
         }
     }
@@ -247,17 +241,17 @@ u32 findMemoryType(Context& context, VkMemoryRequirements const& requirements, V
     return -1;
 }
 
-VkCommandBuffer beginCommandBufferOneTimeSubmit(Context& context)
+VkCommandBuffer beginCommandBufferOneTimeSubmit(Globals& globals)
 {
     VkCommandBuffer commandBuffer;
 
     VkCommandBufferAllocateInfo allocateInfo = {};
     allocateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-    allocateInfo.commandPool = context.commandBuffer.pool;
+    allocateInfo.commandPool = globals.graphicsCommandBuffer.pool;
     allocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
     allocateInfo.commandBufferCount = 1;
 
-    THROW_IF_FAILED(vkAllocateCommandBuffers(context.device.handle, &allocateInfo, &commandBuffer), __FILE__, __LINE__, "Failed to allocate command buffers");
+    THROW_IF_FAILED(vkAllocateCommandBuffers(globals.device.handle, &allocateInfo, &commandBuffer), __FILE__, __LINE__, "Failed to allocate command buffers");
 
     VkCommandBufferBeginInfo beginInfo = {};
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -270,7 +264,7 @@ VkCommandBuffer beginCommandBufferOneTimeSubmit(Context& context)
     return commandBuffer;
 }
 
-void endCommandBufferOneTimeSubmit(Context& context, VkCommandBuffer commandBuffer)
+void endCommandBufferOneTimeSubmit(Globals& globals, VkCommandBuffer commandBuffer)
 {
     vkEndCommandBuffer(commandBuffer);
 
@@ -284,9 +278,14 @@ void endCommandBufferOneTimeSubmit(Context& context, VkCommandBuffer commandBuff
     submitInfo.pCommandBuffers = &commandBuffer;
     submitInfo.signalSemaphoreCount = 0;
     submitInfo.pSignalSemaphores = nullptr;
+    THROW_IF_FAILED(
+        vkQueueSubmit(globals.device.queues.graphics.handle, 1, &submitInfo, VK_NULL_HANDLE),
+        __FILE__, __LINE__,
+        "Failed to submit command buffers");
+    THROW_IF_FAILED(
+        vkQueueWaitIdle(globals.device.queues.graphics.handle),
+        __FILE__, __LINE__,
+        "Failed to wait for a queue to become idle");
 
-    THROW_IF_FAILED(vkQueueSubmit(context.device.queues.graphics, 1, &submitInfo, VK_NULL_HANDLE), __FILE__, __LINE__, "Failed to submit command buffers");
-    THROW_IF_FAILED(vkQueueWaitIdle(context.device.queues.graphics), __FILE__, __LINE__, "Failed to wait for a queue to become idle");
-
-    vkFreeCommandBuffers(context.device.handle, context.commandBuffer.pool, 1, &commandBuffer);
+    vkFreeCommandBuffers(globals.device.handle, globals.graphicsCommandBuffer.pool, 1, &commandBuffer);
 }

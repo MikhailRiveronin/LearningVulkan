@@ -1,40 +1,26 @@
 #include "Swapchain.h"
-
 #include "Utils.h"
 
-#include <glfw/glfw3.h>
+#include <set>
 
-#include <algorithm>
+// #include <algorithm>
 
-static VkExtent2D selectSwapchainExtent(VkSurfaceCapabilitiesKHR const& capabilities, GLFWwindow* window);
-static VkSurfaceFormatKHR selectSwapchainSurfaceFormat(std::vector<VkSurfaceFormatKHR> const& formats);
-static VkPresentModeKHR selectSwapchainPresentMode(std::vector<VkPresentModeKHR> const& presentModes);
-
-void Swapchain::create(Context& context, GLFWwindow* window)
+void Swapchain::create(Globals& globals)
 {
-    auto extent = selectSwapchainExtent(context.swapchain.support.capabilities, window);
-    auto format = selectSwapchainSurfaceFormat(context.swapchain.support.formats);
-    auto presentMode = selectSwapchainPresentMode(context.swapchain.support.presentModes);
-
-    auto imageCount = context.swapchain.support.capabilities.minImageCount + 1;
-    if (context.swapchain.support.capabilities.maxImageCount > 0) {
-        imageCount = std::clamp(imageCount, context.swapchain.support.capabilities.minImageCount, context.swapchain.support.capabilities.maxImageCount);
-    }
-
-    u32 uniqueQueueFamilyIndices[] = { context.device.queueFamilyIndices.graphics.value(), context.device.queueFamilyIndices.present.value() };
-
+    auto imageCount = globals.swapchain.support.capabilities.minImageCount + 1;
+    u32 uniqueQueueFamilyIndices[] = { globals.device.queues.graphics.index, globals.device.queues.present.index };
     VkSwapchainCreateInfoKHR createInfo = {};
     createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
     createInfo.pNext = nullptr;
     createInfo.flags = 0;
-    createInfo.surface = context.surface;
+    createInfo.surface = globals.surface;
     createInfo.minImageCount = imageCount;
-    createInfo.imageFormat = format.format;
-    createInfo.imageColorSpace = format.colorSpace;
-    createInfo.imageExtent = extent;
+    createInfo.imageFormat = globals.swapchain.format.format;
+    createInfo.imageColorSpace = globals.swapchain.format.colorSpace;
+    createInfo.imageExtent = globals.swapchain.extent;
     createInfo.imageArrayLayers = 1;
     createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-    if (context.device.queueFamilyIndices.graphics != context.device.queueFamilyIndices.present) {
+    if (globals.device.queues.graphics.index != globals.device.queues.present.index) {
         createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
         createInfo.queueFamilyIndexCount = 2;
         createInfo.pQueueFamilyIndices = uniqueQueueFamilyIndices;
@@ -43,107 +29,113 @@ void Swapchain::create(Context& context, GLFWwindow* window)
         createInfo.queueFamilyIndexCount = 0;
         createInfo.pQueueFamilyIndices = nullptr;
     }
-    createInfo.preTransform = context.swapchain.support.capabilities.currentTransform;
+    createInfo.preTransform = globals.swapchain.support.capabilities.currentTransform;
     createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
-    createInfo.presentMode = presentMode;
+    createInfo.presentMode = globals.swapchain.presentMode;
     createInfo.clipped = VK_TRUE;
     createInfo.oldSwapchain = VK_NULL_HANDLE;
 
-    THROW_IF_FAILED(vkCreateSwapchainKHR(context.device.handle, &createInfo, context.allocator, &context.swapchain.swapchain), __FILE__, __LINE__, "Failed to create swap chain");
-    LOG_DEBUG("Swapchain successfully created");
+    THROW_IF_FAILED(
+        vkCreateSwapchainKHR(globals.device.handle, &createInfo, globals.allocator, &globals.swapchain.handle),
+        __FILE__, __LINE__,
+        "Failed to create swap chain");
 
     imageCount = 0;
-    THROW_IF_FAILED(vkGetSwapchainImagesKHR(context.device.handle, context.swapchain.swapchain, &imageCount, nullptr), __FILE__, __LINE__, "Failed to get swap chain images");
-    context.swapchain.images.resize(imageCount);
-    THROW_IF_FAILED(vkGetSwapchainImagesKHR(context.device.handle, context.swapchain.swapchain, &imageCount, context.swapchain.images.data()), __FILE__, __LINE__, "Failed to get swap chain images");
+    THROW_IF_FAILED(
+        vkGetSwapchainImagesKHR(globals.device.handle, globals.swapchain.handle, &imageCount, nullptr),
+        __FILE__, __LINE__,
+        "Failed to get swap chain images");
+    globals.swapchain.images.resize(imageCount);
+    THROW_IF_FAILED(
+        vkGetSwapchainImagesKHR(globals.device.handle, globals.swapchain.handle, &imageCount, globals.swapchain.images.data()),
+        __FILE__, __LINE__,
+        "Failed to get swap chain images");
 
-    context.swapchain.format = format.format;
-    context.swapchain.extent = extent;
-
-    context.swapchain.imageViews.resize(imageCount);
+    globals.swapchain.imageViews.resize(imageCount);
     for (size_t i = 0; i < imageCount; ++i) {
-        VkImageViewCreateInfo imageViewCreateInfo = {};
-        imageViewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-        imageViewCreateInfo.pNext = nullptr;
-        imageViewCreateInfo.flags = 0;
-        imageViewCreateInfo.image = context.swapchain.images[i];
-        imageViewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-        imageViewCreateInfo.format = context.swapchain.format;
+        VkImageViewCreateInfo createInfo = {};
+        createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+        createInfo.pNext = nullptr;
+        createInfo.flags = 0;
+        createInfo.image = globals.swapchain.images[i];
+        createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+        createInfo.format = globals.swapchain.format.format;
         VkComponentMapping componentMapping = {};
-        imageViewCreateInfo.components = componentMapping;
-        imageViewCreateInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        imageViewCreateInfo.subresourceRange.baseMipLevel = 0;
-        imageViewCreateInfo.subresourceRange.levelCount = 1;
-        imageViewCreateInfo.subresourceRange.baseArrayLayer = 0;
-        imageViewCreateInfo.subresourceRange.layerCount = 1;
-
-        THROW_IF_FAILED(vkCreateImageView(context.device.handle, &imageViewCreateInfo, context.allocator, &context.swapchain.imageViews[i]), __FILE__, __LINE__, "Failed to create image view");
+        createInfo.components = componentMapping;
+        createInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        createInfo.subresourceRange.baseMipLevel = 0;
+        createInfo.subresourceRange.levelCount = 1;
+        createInfo.subresourceRange.baseArrayLayer = 0;
+        createInfo.subresourceRange.layerCount = 1;
+        THROW_IF_FAILED(
+            vkCreateImageView(globals.device.handle, &createInfo, globals.allocator, &globals.swapchain.imageViews[i]),
+            __FILE__, __LINE__,
+            "Failed to create image view");
     }
+    LOG_DEBUG("Swapchain successfully created");
+
+    globals.swapchain.depthStencilBuffer.width = globals.swapchain.extent.width;
+    globals.swapchain.depthStencilBuffer.height = globals.swapchain.extent.height;
+    globals.swapchain.depthStencilBuffer.format = globals.swapchain.depthStencilBuffer.format;
+    globals.swapchain.depthStencilBuffer.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+    globals.swapchain.depthStencilBuffer.memoryProperties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+    globals.swapchain.depthStencilBuffer.aspect = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
+
+    createImage(globals, globals.swapchain.depthStencilBuffer);
+    createImageView(globals, globals.swapchain.depthStencilBuffer);
+    LOG_DEBUG("Depth buffer successfully created");
+
+    globals.swapchain.framebuffers.resize(globals.swapchain.imageViews.size());
+
+    for (u32 i = 0; i < globals.swapchain.imageViews.size(); ++i) {
+        std::vector<VkImageView> attachments = { globals.swapchain.imageViews[i], globals.swapchain.depthStencilBuffer.view };
+        VkFramebufferCreateInfo createInfo = {};
+        createInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+        createInfo.pNext = nullptr;
+        createInfo.flags = 0;
+        createInfo.renderPass = globals.renderPass;
+        createInfo.attachmentCount = attachments.size();
+        createInfo.pAttachments = attachments.data();
+        createInfo.width = globals.swapchain.extent.width;
+        createInfo.height = globals.swapchain.extent.height;
+        createInfo.layers = 1;
+
+        THROW_IF_FAILED(
+            vkCreateFramebuffer(globals.device.handle, &createInfo, globals.allocator, &globals.swapchain.framebuffers[i]),
+            __FILE__, __LINE__,
+            "Failed to create framebuffer");
+    }
+    LOG_DEBUG("Framebuffer successfully created");
 }
 
-void Swapchain::destroy(Context& context)
+void Swapchain::destroy(Globals const& globals)
 {
-    for (auto& imageView : context.swapchain.imageViews) {
-        vkDestroyImageView(context.device.handle, imageView, context.allocator);
+    for (auto framebuffer : globals.swapchain.framebuffers) {
+        vkDestroyFramebuffer(globals.device.handle, framebuffer, globals.allocator);
     }
-    LOG_DEBUG("Image views destroyed");
-
-    vkDestroySwapchainKHR(context.device.handle, context.swapchain.swapchain, context.allocator);
+    LOG_DEBUG("Framebuffer destroyed");
+    destroyImage(globals, globals.swapchain.depthStencilBuffer);
+    vkDestroyImageView(globals.device.handle, globals.swapchain.depthStencilBuffer.view, globals.allocator);
+    LOG_DEBUG("Depth buffer destroyed");
+    for (auto imageView : globals.swapchain.imageViews) {
+        vkDestroyImageView(globals.device.handle, imageView, globals.allocator);
+    }
+    LOG_DEBUG("Swapchain image views destroyed");
+    vkDestroySwapchainKHR(globals.device.handle, globals.swapchain.handle, globals.allocator);
     LOG_DEBUG("Swapchain destroyed");
 }
 
-void Swapchain::recreate(Context& context, GLFWwindow* window)
+void Swapchain::recreate(Globals& globals)
 {
-    LOG_DEBUG("Swapchain recreating...");
+    // vkDeviceWaitIdle(globals.device.handle);
 
-    vkDeviceWaitIdle(context.device.handle);
+    // for (auto& framebuffer : globals.swapchain.framebuffers) {
+    //     vkDestroyFramebuffer(globals.device.handle, framebuffer, globals.allocator);
+    // }
+    // LOG_DEBUG("Framebuffers destroyed");
 
-    for (auto& framebuffer : context.swapchain.framebuffers) {
-        vkDestroyFramebuffer(context.device.handle, framebuffer, context.allocator);
-    }
-    LOG_DEBUG("Framebuffers destroyed");
+    // destroy(globals);
+    // create(globals, window);
 
-    destroy(context);
-    create(context, window);
-
-    LOG_DEBUG("Swapchain recreating complete");
-}
-
-VkExtent2D selectSwapchainExtent(VkSurfaceCapabilitiesKHR const& capabilities, GLFWwindow* window)
-{
-    if ((capabilities.currentExtent.width != 0xFFFFFFFF) && (capabilities.currentExtent.height != 0xFFFFFFFF)) {
-        return capabilities.currentExtent;
-    } else {
-        int width, height;
-        glfwGetFramebufferSize(window, &width, &height);
-
-        VkExtent2D extent = { static_cast<u32>(width), static_cast<u32>(height) };
-
-        extent.width = std::clamp(extent.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
-        extent.height = std::clamp(extent.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height);
-
-        return extent;
-    }
-}
-
-VkSurfaceFormatKHR selectSwapchainSurfaceFormat(std::vector<VkSurfaceFormatKHR> const& formats)
-{
-    for (auto& format : formats) {
-        if (format.format == VK_FORMAT_B8G8R8A8_SRGB && format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
-            return format;
-        }
-    }
-
-    return formats[0];
-}
-
-VkPresentModeKHR selectSwapchainPresentMode(const std::vector<VkPresentModeKHR>& presentModes)
-{
-    for (auto& presentMode : presentModes) {
-        if (presentMode == VK_PRESENT_MODE_MAILBOX_KHR) {
-            return presentMode;
-        }
-    }
-
-    return VK_PRESENT_MODE_FIFO_KHR;
+    // LOG_DEBUG("Swapchain recreating complete");
 }

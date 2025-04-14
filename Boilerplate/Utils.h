@@ -2,7 +2,7 @@
 
 #include "Defines.h"
 #include "Logger.h"
-#include "Types.h"
+#include "Structures.h"
 
 #include <vulkan/vulkan.h>
 
@@ -19,21 +19,21 @@
     } while (0)
 
 std::vector<u8> loadShaderBinary(std::string const& filename);
-VkShaderModule createShaderModule(Context& context, std::vector<u8> const& code);
+VkShaderModule createShaderModule(Globals& globals, std::vector<u8> const& code);
 
-void createBuffer(Context& context, Buffer& buffer);
-void destroyBuffer(Context& context, Buffer& buffer);
-void copyBuffer(Context& context, Buffer& srcBuffer, Buffer& dstBuffer);
-void copyBufferToImage(Context& context, Buffer& buffer, Image& image);
+void createBuffer(Globals& globals, Buffer& buffer);
+void destroyBuffer(Globals& globals, Buffer& buffer);
+void copyBuffer(Globals& globals, Buffer& srcBuffer, Buffer& dstBuffer);
+void copyBufferToImage(Globals& globals, Buffer& buffer, Image& image);
 
-void createImage(Context& context, Image& image);
-void destroyImage(Context& context, Image& image);
-void createImageView(Context& context, Image& image);
-void transitionImageLayout(Context& context, Image& image, VkImageLayout oldLayout, VkImageLayout newLayout);
+void createImage(Globals& globals, Image& image);
+void destroyImage(Globals const& globals, Image const& image);
+void createImageView(Globals& globals, Image& image);
+void transitionImageLayout(Globals& globals, Image& image, VkImageLayout oldLayout, VkImageLayout newLayout);
 
-void createSampler(Context& context, Sampler& sampler);
+void createSampler(Globals& globals, Sampler& sampler);
 
-u32 findMemoryType(Context& context, VkMemoryRequirements const& requirements, VkMemoryPropertyFlags properties);
+u32 findMemoryType(Globals& globals, VkMemoryRequirements const& requirements, VkMemoryPropertyFlags properties);
 
-VkCommandBuffer beginCommandBufferOneTimeSubmit(Context& context);
-void endCommandBufferOneTimeSubmit(Context& context, VkCommandBuffer commandBuffer);
+VkCommandBuffer beginCommandBufferOneTimeSubmit(Globals& globals);
+void endCommandBufferOneTimeSubmit(Globals& globals, VkCommandBuffer commandBuffer);

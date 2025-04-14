@@ -1,16 +1,16 @@
 #pragma once
 
-#include "Types.h"
+#include "Structures.h"
 
 #include <vulkan/vulkan.h>
 
-#include <optional>
-
 class Device {
 public:
-    void create(Context& context);
-    void destroy(Context& context);
+    void create(Globals& globals);
+    void destroy(Globals& globals);
 
 private:
-    void findPhysicalDevice(Context& context);
+    VkPhysicalDevice physicalDevice;
+
+    void findPhysicalDevice(Globals& globals);
 };

@@ -8,7 +8,7 @@ static std::string logLevelStrings[] = { "ERROR: ", "WARNING: ", "INFO: ", "DEBU
 
 void Log(LogLevel logLevel, char const* format, ...)
 {
-    char buffer[4096];
+    char buffer[16384];
     strcpy(buffer, logLevelStrings[logLevel].c_str());
 
     va_list args;

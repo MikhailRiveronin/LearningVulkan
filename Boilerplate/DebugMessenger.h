@@ -1,16 +1,18 @@
 #pragma once
 
-#ifdef _DEBUG
-#include "Types.h"
+#include "Structures.h"
 
 #include <vulkan/vulkan.h>
 
+#ifdef _DEBUG
 class DebugMessenger {
 public:
-    void create(Context& context);
-    void destroy(Context& context);
+    void initCreateInfo(Globals& globals);
+
+    void create(Globals const& globals);
+    void destroy(Globals const& globals);
 
 private:
-    VkDebugUtilsMessengerEXT messenger;
+    VkDebugUtilsMessengerEXT debugUtilsMessenger;
 };
 #endif

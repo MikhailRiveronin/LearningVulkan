@@ -1,17 +1,11 @@
 #pragma once
 
-#include "Types.h"
-
-#include <glfw/glfw3.h>
-
-#include <vulkan/vulkan.h>
+#include "Defines.h"
+#include "Structures.h"
 
 class Swapchain {
 public:
-    void create(Context& context, GLFWwindow* window);
-    void destroy(Context& context);
-
-    void recreate(Context& context, GLFWwindow* window);
-
-private:
+    void create(Globals& globals);
+    void destroy(Globals const& globals);
+    void recreate(Globals& globals);
 };

@@ -1,135 +1,82 @@
 #include "SampleBase.h"
-
 #include "Logger.h"
 #include "Utils.h"
 
-#include <GLFW/glfw3.h>
-
-#include <iostream>
+#include <chrono>
+#include <stdio.h>
 #include <vector>
 
-static void glfwErrorCallback(int error, char const* description);
-static void framebufferSizeCallback(GLFWwindow* window, int width, int height);
-static void checkLayerSupport(std::vector<char const*> const& requiredLayers);
-static void checkExtensionSupport(std::vector<char const*> const& requiredExtensions);
+static void initRequiredLayers(std::vector<char const*>& requiredLayers);
+static void checkRequiredLayersSupport(std::vector<char const*> const& requiredLayers);
+static void initRequiredInstanceExtensions(std::vector<char const*>& requiredInstanceExtensions);
+static void checkRequiredInstanceExtensionsSupport(std::vector<char const*> const& requiredInstanceExtensions);
 
 SampleBase::SampleBase(u32 width, u32 height, std::string const& name) :
     width(width),
     height(height),
-    name(name),
-    framebufferResized(false)
+    name(name)
 {
+    globals.allocator = nullptr;
+    globals.swapchain.extent = { width, height };
 }
 
-void SampleBase::run()
+void SampleBase::onInit(HINSTANCE hInstance, HWND hWnd)
 {
-    startup(width, height, name);
-    update();
-    shutdown();
-}
-
-void SampleBase::startup(u32 width, u32 height, std::string const& name)
-{
-    createWindow(width, height, name);
     createInstance();
 #ifdef _DEBUG
-    messenger.create(context);
+    debugMessenger.create(globals);
 #endif
-    createSurface();
-    device.create(context);
-    swapchain.create(context, window);
-    createDepthBuffer();
+    createSurface(hInstance, hWnd);
+    device.create(globals);
     createRenderPass();
-    createGeometry();
-    createDescriptorSetLayout();
-    createGraphicsPipeline();
-    createCommandPool();
-    allocateCommandBuffer();
-    createUniformBuffers();
-    createTextureImage();
-    createDescriptorPool();
-    allocateDescriptorSets();
+    swapchain.create(globals);
+    createGraphicsCommandBuffers();
     createSynchronizationObjects();
+    createDescriptorSetLayout();
+    createPipelineLayout();
+    createGraphicsPipeline();
     createVertexBuffer();
     createIndexBuffer();
-    createFramebuffers();
+    createUniformBuffers();
+    createTextureImage();
+    createDescriptorSets();
 }
 
-void SampleBase::update()
+void SampleBase::onUpdate()
 {
-    while (!glfwWindowShouldClose(window)) {
-        glfwPollEvents();
-
-        drawFrame();
-    }
+    drawFrame();
 }
 
-void SampleBase::shutdown()
+void SampleBase::onDestroy()
 {
-    vkDeviceWaitIdle(context.device.handle);
+    vkDeviceWaitIdle(globals.device.handle);
 
-    sampleSpecificShutdown();
-
+    destroyDescriptorSets();
+    destroyTextureImage();
+    destroyUniformBuffers();
+    destroyIndexBuffer();
+    destroyVertexBuffer();
+    destroyGraphicsPipeline();
+    destroyPipelineLayout();
+    destroyDescriptorSetLayout();
     destroySynchronizationObjects();
-    vkDestroyCommandPool(context.device.handle, context.commandBuffer.pool, context.allocator);
-
-    destroyImage(context, depthBuffer);
-
-    for (auto& framebuffer : context.swapchain.framebuffers) {
-        vkDestroyFramebuffer(context.device.handle, framebuffer, context.allocator);
-    }
-    LOG_DEBUG("Framebuffers destroyed");
-
-    vkDestroyRenderPass(context.device.handle, context.renderPass, context.allocator);
-    vkDestroyPipelineLayout(context.device.handle, context.graphicsPipeline.layout, context.allocator);
-    vkDestroyPipeline(context.device.handle, context.graphicsPipeline.pipeline, context.allocator);
-
-    swapchain.destroy(context);
-    device.destroy(context);
-
-    vkDestroySurfaceKHR(context.instance, context.surface, context.allocator);
-    LOG_DEBUG("Surface destroyed");
-
+    destroyGraphicsCommandBuffers();
+    swapchain.destroy(globals);
+    destroyRenderPass();
+    device.destroy(globals);
+    destroySurface();
 #ifdef _DEBUG
-    messenger.destroy(context);
+    debugMessenger.destroy(globals);
 #endif
-
-    vkDestroyInstance(context.instance, context.allocator);
-    LOG_DEBUG("Instance destroyed");
-
-    glfwDestroyWindow(window);
-    LOG_DEBUG("Window destroyed");
-
-    glfwTerminate();
-    LOG_DEBUG("GLFW terminate");
-}
-
-void SampleBase::createWindow(u32 width, u32 height, std::string const& name)
-{
-    glfwSetErrorCallback(glfwErrorCallback);
-
-    if (!glfwInit()) {
-        LOG_ERROR("Failed to initialize GLFW");
-        throw std::runtime_error("Failed to initialize GLFW");
-    }
-    LOG_DEBUG("GLFW successfully initialized");
-
-    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-
-    window = glfwCreateWindow(width, height, name.c_str(), nullptr, nullptr);
-    if (!window) {
-        LOG_ERROR("Failed to create window");
-        glfwTerminate();
-        throw std::runtime_error("Failed to create window");
-    }
-    LOG_DEBUG("Window successfully created");
-
-    glfwSetWindowUserPointer(window, this);
-    glfwSetFramebufferSizeCallback(window, framebufferSizeCallback);
+    destroyInstance();
 }
 
 void SampleBase::createInstance()
 {
+#ifdef _DEBUG
+    debugMessenger.initCreateInfo(globals);
+#endif
+
     VkApplicationInfo appInfo = {};
     appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
     appInfo.pNext = nullptr;
@@ -140,50 +87,53 @@ void SampleBase::createInstance()
     appInfo.apiVersion = VK_API_VERSION_1_3;
 
     std::vector<char const*> requiredLayers;
-#ifdef _DEBUG
-    requiredLayers.push_back("VK_LAYER_KHRONOS_validation");
-#endif
+    initRequiredLayers(requiredLayers);
+    checkRequiredLayersSupport(requiredLayers);
 
-    checkLayerSupport(requiredLayers);
-
-    std::vector<char const*> requiredExtensions;
-    u32 glfwExtensionCount = 0;
-    char const** glfwExtensionNames = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
-    for (size_t i = 0; i < glfwExtensionCount; ++i) {
-        requiredExtensions.push_back(glfwExtensionNames[i]);
-    }
-#ifdef _DEBUG
-    requiredExtensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
-#endif
-
-    checkExtensionSupport(requiredExtensions);
+    std::vector<char const*> requiredInstanceExtensions;
+    initRequiredInstanceExtensions(requiredInstanceExtensions);
+    checkRequiredInstanceExtensionsSupport(requiredInstanceExtensions);
 
     VkInstanceCreateInfo createInfo = {};
     createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+#ifdef _DEBUG
+    createInfo.pNext = &globals.debugMessengerCreateInfo;
+#else
     createInfo.pNext = nullptr;
+#endif
     createInfo.pApplicationInfo = &appInfo;
     createInfo.enabledLayerCount = requiredLayers.size();
     createInfo.ppEnabledLayerNames = requiredLayers.data();
-    createInfo.enabledExtensionCount = requiredExtensions.size();
-    createInfo.ppEnabledExtensionNames = requiredExtensions.data();
+    createInfo.enabledExtensionCount = requiredInstanceExtensions.size();
+    createInfo.ppEnabledExtensionNames = requiredInstanceExtensions.data();
 
-    THROW_IF_FAILED(vkCreateInstance(&createInfo, context.allocator, &context.instance), __FILE__, __LINE__, "Failed to create an instance");
+    THROW_IF_FAILED(
+        vkCreateInstance(&createInfo, globals.allocator, &globals.instance),
+        __FILE__, __LINE__,
+        "Failed to create an instance");
     LOG_DEBUG("Instance successfully created");
 }
 
-void SampleBase::createSurface()
+void SampleBase::createSurface(HINSTANCE hInstance, HWND hWnd)
 {
-    THROW_IF_FAILED(glfwCreateWindowSurface(context.instance, window, context.allocator, &context.surface), __FILE__, __LINE__, "Failed to create window surface");
+    VkWin32SurfaceCreateInfoKHR createInfo = {};
+    createInfo.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
+    createInfo.pNext = nullptr;
+    createInfo.flags = 0;
+    createInfo.hinstance = hInstance;
+    createInfo.hwnd = hWnd;
+    THROW_IF_FAILED(
+        vkCreateWin32SurfaceKHR(globals.instance, &createInfo, globals.allocator, &globals.surface),
+        __FILE__, __LINE__,
+        "Failed to create window surface");
     LOG_DEBUG("Surface successfully created");
 }
 
 void SampleBase::createRenderPass()
 {
-    std::vector<VkAttachmentDescription> attachments;
-
     VkAttachmentDescription colorAttachment = {};
     colorAttachment.flags = 0;
-    colorAttachment.format = context.swapchain.format;
+    colorAttachment.format = globals.swapchain.format.format;
     colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
     colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
     colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -192,34 +142,28 @@ void SampleBase::createRenderPass()
     colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
     colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 
-    attachments.push_back(std::move(colorAttachment));
-
     VkAttachmentDescription depthAttachment = {};
     depthAttachment.flags = 0;
-    depthAttachment.format = depthBuffer.format;
+    depthAttachment.format = globals.swapchain.depthStencilBuffer.format;
     depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
     depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
     depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
     depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
     depthAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
     depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
+    
+    std::vector<VkAttachmentDescription> attachments;
+    attachments.push_back(std::move(colorAttachment));
     attachments.push_back(std::move(depthAttachment));
-
-    std::vector<VkAttachmentReference> attachmentReferences;
 
     VkAttachmentReference colorAttachmentReference;
     colorAttachmentReference.attachment = 0;
     colorAttachmentReference.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
-    attachmentReferences.push_back(std::move(colorAttachmentReference));
-
     VkAttachmentReference depthAttachmentReference;
     depthAttachmentReference.attachment = 1;
     depthAttachmentReference.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-    attachmentReferences.push_back(std::move(depthAttachmentReference));
 
     VkSubpassDescription subpass;
     subpass.flags = 0;
@@ -253,183 +197,186 @@ void SampleBase::createRenderPass()
     createInfo.dependencyCount = 1;
     createInfo.pDependencies = &subpassDependency;
 
-    THROW_IF_FAILED(vkCreateRenderPass(context.device.handle, &createInfo, context.allocator, &context.renderPass), __FILE__, __LINE__, "Failed to create render pass");
+    THROW_IF_FAILED(
+        vkCreateRenderPass(globals.device.handle, &createInfo, globals.allocator, &globals.renderPass),
+        __FILE__, __LINE__,
+        "Failed to create render pass");
+    LOG_DEBUG("Render pass successfully created");
 }
 
-void SampleBase::createFramebuffers()
-{
-    context.swapchain.framebuffers.resize(context.swapchain.imageViews.size());
-
-    for (u32 i = 0; i < context.swapchain.imageViews.size(); ++i) {
-        std::vector<VkImageView> attachments = { context.swapchain.imageViews[i], depthBuffer.view };
-
-        VkFramebufferCreateInfo createInfo = {};
-        createInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-        createInfo.pNext = nullptr;
-        createInfo.flags = 0;
-        createInfo.renderPass = context.renderPass;
-        createInfo.attachmentCount = attachments.size();
-        createInfo.pAttachments = attachments.data();
-        createInfo.width = context.swapchain.extent.width;
-        createInfo.height = context.swapchain.extent.height;
-        createInfo.layers = 1;
-
-        THROW_IF_FAILED(vkCreateFramebuffer(context.device.handle, &createInfo, context.allocator, &context.swapchain.framebuffers[i]), __FILE__, __LINE__, "Failed to create framebuffer");
-    }
-}
-
-void SampleBase::createCommandPool()
+void SampleBase::createGraphicsCommandBuffers()
 {
     VkCommandPoolCreateInfo createInfo = {};
     createInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
     createInfo.pNext = nullptr;
     createInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-    createInfo.queueFamilyIndex = context.device.queueFamilyIndices.graphics.value();
+    createInfo.queueFamilyIndex = globals.device.queues.graphics.index;
+    THROW_IF_FAILED(
+        vkCreateCommandPool(globals.device.handle, &createInfo, globals.allocator, &globals.graphicsCommandBuffer.pool),
+        __FILE__, __LINE__,
+        "Failed to create command pool");
 
-    THROW_IF_FAILED(vkCreateCommandPool(context.device.handle, &createInfo, context.allocator, &context.commandBuffer.pool), __FILE__, __LINE__, "Failed to create command pool");
-}
-
-void SampleBase::allocateCommandBuffer()
-{
-    context.commandBuffer.buffers.resize(framesInFlight);
-
+    globals.graphicsCommandBuffer.buffers.resize(framesInFlight);
     VkCommandBufferAllocateInfo allocateInfo = {};
     allocateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
     allocateInfo.pNext = nullptr;
-    allocateInfo.commandPool = context.commandBuffer.pool;
+    allocateInfo.commandPool = globals.graphicsCommandBuffer.pool;
     allocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    allocateInfo.commandBufferCount = context.commandBuffer.buffers.size();
-
-    THROW_IF_FAILED(vkAllocateCommandBuffers(context.device.handle, &allocateInfo, context.commandBuffer.buffers.data()), __FILE__, __LINE__, "Failed to allocate command buffers");
+    allocateInfo.commandBufferCount = globals.graphicsCommandBuffer.buffers.size();
+    THROW_IF_FAILED(
+        vkAllocateCommandBuffers(globals.device.handle, &allocateInfo, globals.graphicsCommandBuffer.buffers.data()),
+        __FILE__, __LINE__,
+        "Failed to allocate command buffers");
+    LOG_DEBUG("Graphics command buffer successfully created");
 }
 
 void SampleBase::createSynchronizationObjects()
 {
-    context.synchronization.imageAvailableSemaphores.resize(framesInFlight);
-    context.synchronization.renderFinishedSemaphores.resize(framesInFlight);
-    context.synchronization.fences.resize(framesInFlight);
+    globals.synchronization.semaphores.imageAcquired.resize(framesInFlight);
+    globals.synchronization.semaphores.renderFinished.resize(framesInFlight);
+    globals.synchronization.fences.previousFrameFinished.resize(framesInFlight);
 
     VkSemaphoreCreateInfo semaphoreCreateInfo = {};
     semaphoreCreateInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
     semaphoreCreateInfo.pNext = nullptr;
     semaphoreCreateInfo.flags = 0;
-
     for (u32 i = 0; i < framesInFlight; ++i) {
-        THROW_IF_FAILED(vkCreateSemaphore(context.device.handle, &semaphoreCreateInfo, context.allocator, &context.synchronization.imageAvailableSemaphores[i]), __FILE__, __LINE__, "Failed to create semaphore");
-        THROW_IF_FAILED(vkCreateSemaphore(context.device.handle, &semaphoreCreateInfo, context.allocator, &context.synchronization.renderFinishedSemaphores[i]), __FILE__, __LINE__, "Failed to create semaphore");
+        THROW_IF_FAILED(
+            vkCreateSemaphore(globals.device.handle, &semaphoreCreateInfo, globals.allocator, &globals.synchronization.semaphores.imageAcquired[i]),
+            __FILE__, __LINE__,
+            "Failed to create semaphore");
+        THROW_IF_FAILED(
+            vkCreateSemaphore(globals.device.handle, &semaphoreCreateInfo, globals.allocator, &globals.synchronization.semaphores.renderFinished[i]),
+            __FILE__, __LINE__,
+            "Failed to create semaphore");
     }
 
     VkFenceCreateInfo fenceCreateInfo = {};
     fenceCreateInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
     fenceCreateInfo.pNext = nullptr;
     fenceCreateInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
-
     for (u32 i = 0; i < framesInFlight; ++i) {
-        THROW_IF_FAILED(vkCreateFence(context.device.handle, &fenceCreateInfo, context.allocator, &context.synchronization.fences[i]), __FILE__, __LINE__, "Failed to create fence");
+        THROW_IF_FAILED(
+            vkCreateFence(globals.device.handle, &fenceCreateInfo, globals.allocator, &globals.synchronization.fences.previousFrameFinished[i]),
+            __FILE__, __LINE__,
+            "Failed to create fence");
     }
+    LOG_DEBUG("Synchronization objects successfully created");
 }
 
 void SampleBase::drawFrame()
 {
     static u32 frameIndex = 0;
-
-    if (framebufferResized) {
-        swapchain.recreate(context, window);
-        createFramebuffers();
-        framebufferResized = false;
-    }
-
     updateUniformBuffer(frameIndex);
 
-    THROW_IF_FAILED(vkWaitForFences(context.device.handle, 1, &context.synchronization.fences[frameIndex], VK_TRUE, UINT64_MAX), __FILE__, __LINE__, "Failed to wait for fences");
+    THROW_IF_FAILED(
+        vkWaitForFences(globals.device.handle, 1, &globals.synchronization.fences.previousFrameFinished[frameIndex], VK_TRUE, UINT64_MAX),
+        __FILE__, __LINE__,
+        "Failed to wait for fences");
 
     u32 imageIndex;
-    auto result = vkAcquireNextImageKHR(context.device.handle, context.swapchain.swapchain, UINT64_MAX, context.synchronization.imageAvailableSemaphores[frameIndex], VK_NULL_HANDLE, &imageIndex);
+    auto result = vkAcquireNextImageKHR(
+        globals.device.handle, globals.swapchain.handle,
+        UINT64_MAX,
+        globals.synchronization.semaphores.imageAcquired[frameIndex], VK_NULL_HANDLE,
+        &imageIndex);
     if (result == VK_ERROR_OUT_OF_DATE_KHR) {
         return;
     } else {
         THROW_IF_FAILED(result, __FILE__, __LINE__, "Failed to acquire next image");
     }
 
-    THROW_IF_FAILED(vkResetFences(context.device.handle, 1, &context.synchronization.fences[frameIndex]), __FILE__, __LINE__, "Failed to reset fences");
+    THROW_IF_FAILED(
+        vkResetFences(globals.device.handle, 1, &globals.synchronization.fences.previousFrameFinished[frameIndex]),
+        __FILE__, __LINE__,
+        "Failed to reset fences");
 
-    vkResetCommandBuffer(context.commandBuffer.buffers[frameIndex], 0);
-    recordCommandBuffer(context.commandBuffer.buffers[frameIndex], imageIndex, frameIndex);
+    vkResetCommandBuffer(globals.graphicsCommandBuffer.buffers[frameIndex], 0);
+    recordCommandBuffer(globals.graphicsCommandBuffer.buffers[frameIndex], imageIndex, frameIndex);
 
-    std::vector<VkPipelineStageFlags> pipelineStageFlags;
-    pipelineStageFlags.push_back(VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
-
+    VkPipelineStageFlags waitPipelineStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
     VkSubmitInfo submitInfo = {};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     submitInfo.pNext = nullptr;
     submitInfo.waitSemaphoreCount = 1;
-    submitInfo.pWaitSemaphores = &context.synchronization.imageAvailableSemaphores[frameIndex];
-    submitInfo.pWaitDstStageMask = pipelineStageFlags.data();
+    submitInfo.pWaitSemaphores = &globals.synchronization.semaphores.imageAcquired[frameIndex];
+    submitInfo.pWaitDstStageMask = &waitPipelineStage;
     submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &context.commandBuffer.buffers[frameIndex];
+    submitInfo.pCommandBuffers = &globals.graphicsCommandBuffer.buffers[frameIndex];
     submitInfo.signalSemaphoreCount = 1;
-    submitInfo.pSignalSemaphores = &context.synchronization.renderFinishedSemaphores[frameIndex];
+    submitInfo.pSignalSemaphores = &globals.synchronization.semaphores.renderFinished[frameIndex];
 
-    THROW_IF_FAILED(vkQueueSubmit(context.device.queues.graphics, 1, &submitInfo, context.synchronization.fences[frameIndex]), __FILE__, __LINE__, "Failed to queue submit");
+    THROW_IF_FAILED(
+        vkQueueSubmit(globals.device.queues.graphics.handle, 1, &submitInfo, globals.synchronization.fences.previousFrameFinished[frameIndex]),
+        __FILE__, __LINE__,
+        "Failed to queue submit");
 
     VkPresentInfoKHR presentInfo;
     presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
     presentInfo.pNext = nullptr;
     presentInfo.waitSemaphoreCount = 1;
-    presentInfo.pWaitSemaphores = &context.synchronization.renderFinishedSemaphores[frameIndex];
+    presentInfo.pWaitSemaphores = &globals.synchronization.semaphores.renderFinished[frameIndex];
     presentInfo.swapchainCount = 1;
-    presentInfo.pSwapchains = &context.swapchain.swapchain;
+    presentInfo.pSwapchains = &globals.swapchain.handle;
     presentInfo.pImageIndices = &imageIndex;
     presentInfo.pResults = nullptr;
 
     frameIndex = (frameIndex + 1) % framesInFlight;
 
-    result = vkQueuePresentKHR(context.device.queues.present, &presentInfo);
-    // if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
-    //     swapchain.recreate(context, window);
-    //     createFramebuffers();
-    // } else {
-    //     THROW_IF_FAILED(result, __FILE__, __LINE__, "Failed to present");
-    // }
-}
-
-void SampleBase::createDepthBuffer()
-{
-    depthBuffer.width = context.swapchain.extent.width;
-    depthBuffer.height = context.swapchain.extent.height;
-    depthBuffer.format = VK_FORMAT_D32_SFLOAT_S8_UINT;
-    depthBuffer.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-    depthBuffer.memoryProperties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-    depthBuffer.aspect = VK_IMAGE_ASPECT_DEPTH_BIT;
-
-    createImage(context, depthBuffer);
-    createImageView(context, depthBuffer);
-
+    result = vkQueuePresentKHR(globals.device.queues.present.handle, &presentInfo);
 }
 
 void SampleBase::destroySynchronizationObjects()
 {
     for (u32 i = 0; i < framesInFlight; ++i) {
-        vkDestroySemaphore(context.device.handle, context.synchronization.imageAvailableSemaphores[i], context.allocator);
-        vkDestroySemaphore(context.device.handle, context.synchronization.renderFinishedSemaphores[i], context.allocator);
-        vkDestroyFence(context.device.handle, context.synchronization.fences[i], context.allocator);
+        vkDestroySemaphore(globals.device.handle, globals.synchronization.semaphores.imageAcquired[i], globals.allocator);
+        vkDestroySemaphore(globals.device.handle, globals.synchronization.semaphores.renderFinished[i], globals.allocator);
+        vkDestroyFence(globals.device.handle, globals.synchronization.fences.previousFrameFinished[i], globals.allocator);
     }
+
+    LOG_DEBUG("Synchronization objects destroyed");
 }
 
-void glfwErrorCallback(int error, char const* message)
+void SampleBase::destroyGraphicsCommandBuffers()
 {
-    std::cerr << error << ": " << message << std::endl;
+    vkFreeCommandBuffers(
+        globals.device.handle,
+        globals.graphicsCommandBuffer.pool,
+        globals.graphicsCommandBuffer.buffers.size(),
+        globals.graphicsCommandBuffer.buffers.data());
+
+    vkDestroyCommandPool(globals.device.handle, globals.graphicsCommandBuffer.pool, globals.allocator);
+    LOG_DEBUG("Graphics command buffer destroyed");
 }
 
-void framebufferSizeCallback(GLFWwindow* window, int width, int height)
+void SampleBase::destroyRenderPass()
 {
-    auto app = (SampleBase*)glfwGetWindowUserPointer(window);
-    app->framebufferResized = true;
+    vkDestroyRenderPass(globals.device.handle, globals.renderPass, globals.allocator);
+    LOG_DEBUG("Render pass destroyed");
 }
 
-void checkLayerSupport(std::vector<char const*> const& requiredLayers)
+void SampleBase::destroySurface()
 {
-    char buffer[1024];
+    vkDestroySurfaceKHR(globals.instance, globals.surface, globals.allocator);
+    LOG_DEBUG("Surface destroyed");
+}
+
+void SampleBase::destroyInstance()
+{
+    vkDestroyInstance(globals.instance, globals.allocator);
+    LOG_DEBUG("Instance destroyed");
+}
+
+void initRequiredLayers(std::vector<char const*>& requiredLayers)
+{
+#ifdef _DEBUG
+    requiredLayers.push_back("VK_LAYER_KHRONOS_validation");
+#endif
+}
+
+void checkRequiredLayersSupport(std::vector<char const*> const& requiredLayers)
+{
+    char buffer[16384];
     sprintf(buffer, "Required layers: ");
     char const* indent = "                 ";
     for (u32 i = 0; i < requiredLayers.size(); ++i) {
@@ -443,9 +390,15 @@ void checkLayerSupport(std::vector<char const*> const& requiredLayers)
     LOG_INFO(buffer);
 
     u32 availableLayerCount;
-    THROW_IF_FAILED(vkEnumerateInstanceLayerProperties(&availableLayerCount, nullptr), __FILE__, __LINE__, "Failed to enumerate instance layer properties");
+    THROW_IF_FAILED(
+        vkEnumerateInstanceLayerProperties(&availableLayerCount, nullptr),
+        __FILE__, __LINE__,
+        "Failed to enumerate instance layer properties");
     std::vector<VkLayerProperties> availableLayers(availableLayerCount);
-    THROW_IF_FAILED(vkEnumerateInstanceLayerProperties(&availableLayerCount, availableLayers.data()), __FILE__, __LINE__, "Failed to enumerate instance layer properties");
+    THROW_IF_FAILED(
+        vkEnumerateInstanceLayerProperties(&availableLayerCount, availableLayers.data()),
+        __FILE__, __LINE__,
+        "Failed to enumerate instance layer properties");
 
     sprintf(buffer, "Available layers: ");
     indent = "                  ";
@@ -467,11 +420,24 @@ void checkLayerSupport(std::vector<char const*> const& requiredLayers)
             throw std::runtime_error("Required layer is not supported");
         }
     }
+
+    LOG_INFO("All required layers supported");
 }
 
-void checkExtensionSupport(std::vector<char const*> const& requiredExtensions)
+void initRequiredInstanceExtensions(std::vector<char const*>& requiredInstanceExtensions)
 {
-    char buffer[4096];
+    requiredInstanceExtensions.push_back(VK_KHR_SURFACE_EXTENSION_NAME);
+#ifdef _WIN32
+    requiredInstanceExtensions.push_back(VK_KHR_WIN32_SURFACE_EXTENSION_NAME);
+#endif
+#ifdef _DEBUG
+    requiredInstanceExtensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+#endif
+}
+
+void checkRequiredInstanceExtensionsSupport(std::vector<char const*> const& requiredExtensions)
+{
+    char buffer[16384];
     sprintf(buffer, "Required instance level extensions: ");
     char const* indent = "                                    ";
     for (u32 i = 0; i < requiredExtensions.size(); ++i) {
@@ -485,9 +451,15 @@ void checkExtensionSupport(std::vector<char const*> const& requiredExtensions)
     LOG_INFO(buffer);
 
     u32 availableExtensionCount;
-    THROW_IF_FAILED(vkEnumerateInstanceExtensionProperties(nullptr, &availableExtensionCount, nullptr), __FILE__, __LINE__, "Failed to enumerate instance extension properties");
+    THROW_IF_FAILED(
+        vkEnumerateInstanceExtensionProperties(nullptr, &availableExtensionCount, nullptr),
+        __FILE__, __LINE__,
+        "Failed to enumerate instance extension properties");
     std::vector<VkExtensionProperties> availableExtensions(availableExtensionCount);
-    THROW_IF_FAILED(vkEnumerateInstanceExtensionProperties(nullptr, &availableExtensionCount, availableExtensions.data()), __FILE__, __LINE__, "Failed to enumerate instance extension properties");
+    THROW_IF_FAILED(
+        vkEnumerateInstanceExtensionProperties(nullptr, &availableExtensionCount, availableExtensions.data()),
+        __FILE__, __LINE__,
+        "Failed to enumerate instance extension properties");
 
     sprintf(buffer, "Available instance level extensions: ");
     indent = "                                     ";
@@ -509,4 +481,6 @@ void checkExtensionSupport(std::vector<char const*> const& requiredExtensions)
             throw std::runtime_error("Required extension is not supported");
         }
     }
+
+    LOG_INFO("All required instance extensions supported");
 }

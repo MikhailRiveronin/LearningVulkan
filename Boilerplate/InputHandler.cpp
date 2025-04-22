@@ -19,7 +19,7 @@ void InputHandler::processKeystroke(u16 keyCode, bool pressed)
     //     keyboardState[keyCode] = pressed;
 
         EventContext context;
-        context.keyCodes[0] = keyCode;
+        context.u16[0] = keyCode;
         EventManager::notify(pressed ? EventType::KEY_DOWN : EventType::KEY_UP, context);
     // }
 }
@@ -27,15 +27,15 @@ void InputHandler::processKeystroke(u16 keyCode, bool pressed)
 void InputHandler::processLeftMouseButton(i16 x, i16 y)
 {
     EventContext context;
-    context.mousePos[0] = x;
-    context.mousePos[1] = y;
+    context.i16[0] = x;
+    context.i16[1] = y;
     EventManager::notify(EventType::LEFT_BUTTON_DOWN, context);
 }
 
 void InputHandler::processMouseMove(i16 x, i16 y)
 {
     EventContext context;
-    context.mousePos[0] = x;
-    context.mousePos[1] = y;
+    context.i16[0] = x;
+    context.i16[1] = y;
     EventManager::notify(EventType::MOUSE_MOVE, context);
 }

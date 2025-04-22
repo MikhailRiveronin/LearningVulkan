@@ -7,5 +7,4 @@ class Swapchain {
 public:
     void create(Globals& globals);
     void destroy(Globals const& globals);
-    void recreate(Globals& globals);
 };

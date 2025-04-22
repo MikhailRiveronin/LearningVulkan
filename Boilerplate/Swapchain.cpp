@@ -124,18 +124,3 @@ void Swapchain::destroy(Globals const& globals)
     vkDestroySwapchainKHR(globals.device.handle, globals.swapchain.handle, globals.allocator);
     LOG_DEBUG("Swapchain destroyed");
 }
-
-void Swapchain::recreate(Globals& globals)
-{
-    // vkDeviceWaitIdle(globals.device.handle);
-
-    // for (auto& framebuffer : globals.swapchain.framebuffers) {
-    //     vkDestroyFramebuffer(globals.device.handle, framebuffer, globals.allocator);
-    // }
-    // LOG_DEBUG("Framebuffers destroyed");
-
-    // destroy(globals);
-    // create(globals, window);
-
-    // LOG_DEBUG("Swapchain recreating complete");
-}

@@ -19,15 +19,15 @@ void Camera::onNotify(EventType type, EventContext context)
 {
     switch (type) {
     case EventType::LEFT_BUTTON_DOWN:
-        lastPos.x = context.mousePos[0];
-        lastPos.y = context.mousePos[1];
+        lastPos.x = context.i16[0];
+        lastPos.y = context.i16[1];
         return;
 
     case EventType::MOUSE_MOVE: {
-        i16 xOffset = context.mousePos[0] - lastPos.x;
-        i16 yOffset = context.mousePos[1] - lastPos.y;
-        lastPos.x = context.mousePos[0];
-        lastPos.y = context.mousePos[1];
+        i16 xOffset = context.i16[0] - lastPos.x;
+        i16 yOffset = context.i16[1] - lastPos.y;
+        lastPos.x = context.i16[0];
+        lastPos.y = context.i16[1];
         yaw += (float)xOffset * mouseSensitivity;
         pitch += (float)yOffset * mouseSensitivity;
         pitch = std::clamp(pitch, -89.f, 89.f);
@@ -37,7 +37,7 @@ void Camera::onNotify(EventType type, EventContext context)
     }
 
     case EventType::KEY_DOWN:
-        switch (context.keyCodes[0]) {
+        switch (context.u16[0]) {
         case KEY_CODE_W:
             pos += target * movementSpeed;
             break;

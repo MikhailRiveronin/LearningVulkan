@@ -1,7 +1,9 @@
 #pragma once
 
 #include "Defines.h"
+#include "ProceduralMeshes/Vertex.h"
 
+#include <glm/glm.hpp>
 #include <vulkan/vulkan.h>
 #include <optional>
 #include <vector>
@@ -10,18 +12,11 @@ struct Buffer {
     VkBuffer handle = VK_NULL_HANDLE;
     VkDeviceMemory memory = VK_NULL_HANDLE;
 
-    VkSharingMode sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
     VkDeviceSize size = 0;
     VkBufferUsageFlags usage = 0;
-    u32 queueFamilyIndexCount = 0;
-    u32* queueFamilyIndices = nullptr;
-
-    VkDeviceSize memoryOffset = 0;
-
     VkMemoryPropertyFlags memoryProperties = 0;
-    VkDescriptorSet descriptorSet;
-    VkDescriptorBufferInfo descriptorBufferInfo = {};
+
+    VkDescriptorBufferInfo descriptor = {};
     void* mapped = nullptr;
 };
 
@@ -47,6 +42,8 @@ struct Image {
 
     u32 queueCount = 0;
     u32* queueIndices = nullptr;
+
+    VkDescriptorImageInfo descriptor = {};
 };
 
 struct Sampler {
@@ -143,4 +140,45 @@ struct Globals {
             std::vector<VkFence> previousFrameFinished;
         } fences;
     } synchronization;
+};
+
+struct RenderObject {
+    struct {
+        std::vector<Vertex> vertices;
+        std::vector<u16> indices;
+    } mesh;
+
+    struct {
+        u32 indexCount;
+        u32 firstIndex;
+        i32 vertexOffset;
+    } drawArgs;
+
+    glm::mat4 world = glm::mat4(1.f);
+};
+
+struct RenderLayer {
+    VkPipeline pipeline;
+    std::vector<RenderObject> renderObjects;
+    std::vector<VkDescriptorSetLayout> setLayouts;
+    std::vector<VkDescriptorSet> descriptorSets;
+};
+
+struct RenderPassConstants {
+    u32 binding = 0;
+    glm::mat4 world;
+    glm::mat4 proj;
+};
+
+
+
+struct Mesh {
+    std::vector<RenderObject> items;
+
+    std::vector<Submesh> submeshes;
+
+
+    Buffer vertexBuffer;
+    Buffer indexBuffer;
+
 };

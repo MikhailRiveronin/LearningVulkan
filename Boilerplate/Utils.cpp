@@ -2,38 +2,24 @@
 
 #include <fstream>
 
-std::vector<u8> loadShaderBinary(std::string const& filename)
+std::vector<char> loadShaderCode(std::string const& filename)
 {
-    std::ifstream file(filename, std::ios::ate | std::ios::binary);
+    std::string shaderFolder = "Shaders/";
+    std::string path = shaderFolder + filename;
+    std::ifstream file(path, std::ios::ate | std::ios::binary);
     if (!file.is_open()) {
         throw std::runtime_error("Failed to open file");
     }
 
     auto fileSize = file.tellg();
-    std::vector<u8> buffer(fileSize);
+    std::vector<char> buffer(fileSize);
     file.seekg(0);
     file.read((char*)buffer.data(), fileSize);
     file.close();
-
     return buffer;
 }
 
-VkShaderModule createShaderModule(Globals& globals, std::vector<u8> const& code)
-{
-    VkShaderModuleCreateInfo createInfo = {};
-    createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-    createInfo.pNext = nullptr;
-    createInfo.flags = 0;
-    createInfo.codeSize = code.size();
-    createInfo.pCode = (const u32*)code.data();
-
-    VkShaderModule module;
-    THROW_IF_FAILED(vkCreateShaderModule(globals.device.handle, &createInfo, globals.allocator, &module), __FILE__, __LINE__, "Failed to create shader module");
-
-    return module;
-}
-
-void createBuffer(Globals& globals, Buffer& buffer)
+void createBuffer(Globals const& globals, Buffer& buffer)
 {
     VkBufferCreateInfo createInfo = {};
     createInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -41,23 +27,30 @@ void createBuffer(Globals& globals, Buffer& buffer)
     createInfo.flags = 0;
     createInfo.size = buffer.size;
     createInfo.usage = buffer.usage;
-    createInfo.sharingMode = buffer.sharingMode;
-    createInfo.queueFamilyIndexCount = buffer.queueFamilyIndexCount;
-    createInfo.pQueueFamilyIndices = buffer.queueFamilyIndices;
-
-    THROW_IF_FAILED(vkCreateBuffer(globals.device.handle, &createInfo, globals.allocator, &buffer.handle), __FILE__, __LINE__, "Failed to create buffer");
+    createInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    createInfo.queueFamilyIndexCount = 0;
+    createInfo.pQueueFamilyIndices = nullptr;
+    THROW_IF_FAILED(
+        vkCreateBuffer(globals.device.handle, &createInfo, globals.allocator, &buffer.handle),
+        __FILE__, __LINE__,
+        "Failed to create buffer");
 
     VkMemoryRequirements memoryRequirements;
     vkGetBufferMemoryRequirements(globals.device.handle, buffer.handle, &memoryRequirements);
-
     VkMemoryAllocateInfo allocateInfo = {};
     allocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
     allocateInfo.pNext = nullptr;
     allocateInfo.allocationSize = memoryRequirements.size;
     allocateInfo.memoryTypeIndex = findMemoryType(globals, memoryRequirements, buffer.memoryProperties);
+    THROW_IF_FAILED(
+        vkAllocateMemory(globals.device.handle, &allocateInfo, globals.allocator, &buffer.memory),
+        __FILE__, __LINE__,
+        "Failed to allocate memory");
 
-    THROW_IF_FAILED(vkAllocateMemory(globals.device.handle, &allocateInfo, globals.allocator, &buffer.memory), __FILE__, __LINE__, "Failed to allocate memory");
-    THROW_IF_FAILED(vkBindBufferMemory(globals.device.handle, buffer.handle, buffer.memory, buffer.memoryOffset), __FILE__, __LINE__, "Failed to bind buffer memory");
+    THROW_IF_FAILED(
+        vkBindBufferMemory(globals.device.handle, buffer.handle, buffer.memory, 0),
+        __FILE__, __LINE__,
+        "Failed to bind buffer memory");
 }
 
 void destroyBuffer(Globals& globals, Buffer& buffer)
@@ -66,7 +59,7 @@ void destroyBuffer(Globals& globals, Buffer& buffer)
     vkFreeMemory(globals.device.handle, buffer.memory, globals.allocator);
 }
 
-void copyBuffer(Globals& globals, Buffer& srcBuffer, Buffer& dstBuffer)
+void copyBuffer(Globals const& globals, Buffer& srcBuffer, Buffer& dstBuffer)
 {
     auto commandBuffer = beginCommandBufferOneTimeSubmit(globals);
 
@@ -98,6 +91,19 @@ void copyBufferToImage(Globals& globals, Buffer& buffer, Image& image)
     vkCmdCopyBufferToImage(commandBuffer, buffer.handle, image.handle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy);
 
     endCommandBufferOneTimeSubmit(globals, commandBuffer);
+}
+
+void mapBuffer(Globals const& globals, Buffer& buffer)
+{
+    THROW_IF_FAILED(
+        vkMapMemory(globals.device.handle, buffer.memory, 0, buffer.size, 0, &buffer.mapped),
+        __FILE__, __LINE__,
+        "Failed to map memory");
+}
+
+void unmapBuffer(Globals const& globals, Buffer& buffer)
+{
+    vkUnmapMemory(globals.device.handle, buffer.memory);
 }
 
 void createImage(Globals& globals, Image& image)
@@ -228,20 +234,18 @@ void createSampler(Globals& globals, Sampler& sampler)
     THROW_IF_FAILED(vkCreateSampler(globals.device.handle, &createInfo, globals.allocator, &sampler.handle), __FILE__, __LINE__, "Failed to create sampler");
 }
 
-u32 findMemoryType(Globals& globals, VkMemoryRequirements const& requirements, VkMemoryPropertyFlags properties)
+u32 findMemoryType(Globals const& globals, VkMemoryRequirements const& requirements, VkMemoryPropertyFlags properties)
 {
     for (uint32_t i = 0; i < globals.device.support.memoryProperties.memoryTypeCount; ++i) {
         if ((requirements.memoryTypeBits & (1 << i)) && ((globals.device.support.memoryProperties.memoryTypes[i].propertyFlags & properties) == properties)) {
             return i;
         }
     }
-
     LOG_ERROR("Failed to find suitable memory type");
-
     return -1;
 }
 
-VkCommandBuffer beginCommandBufferOneTimeSubmit(Globals& globals)
+VkCommandBuffer beginCommandBufferOneTimeSubmit(Globals const& globals)
 {
     VkCommandBuffer commandBuffer;
 
@@ -264,7 +268,7 @@ VkCommandBuffer beginCommandBufferOneTimeSubmit(Globals& globals)
     return commandBuffer;
 }
 
-void endCommandBufferOneTimeSubmit(Globals& globals, VkCommandBuffer commandBuffer)
+void endCommandBufferOneTimeSubmit(Globals const& globals, VkCommandBuffer commandBuffer)
 {
     vkEndCommandBuffer(commandBuffer);
 
@@ -288,4 +292,12 @@ void endCommandBufferOneTimeSubmit(Globals& globals, VkCommandBuffer commandBuff
         "Failed to wait for a queue to become idle");
 
     vkFreeCommandBuffers(globals.device.handle, globals.graphicsCommandBuffer.pool, 1, &commandBuffer);
+}
+
+u32 calculateAlignedSize(u32 size, u32 alignment)
+{
+    if (alignment == 0) {
+        throw std::runtime_error("Alignment cannot be zero");
+    }
+    return (size + alignment - 1) / alignment * alignment;
 }

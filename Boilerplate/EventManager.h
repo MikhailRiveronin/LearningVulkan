@@ -11,12 +11,13 @@ enum class EventType {
     KEY_DOWN,
     KEY_UP,
     LEFT_BUTTON_DOWN,
-    MOUSE_MOVE
+    MOUSE_MOVE,
+    WINDOW_RESIZE
 };
 
 union EventContext {
-    i16 mousePos[4];
-    u16 keyCodes[4];
+    i16 i16[4];
+    u16 u16[4];
 };
 
 class Listener {

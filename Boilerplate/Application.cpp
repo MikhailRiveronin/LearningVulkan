@@ -1,5 +1,6 @@
 #include "Application.h"
-
+#include "Defines.h"
+#include "EventManager.h"
 #include "InputHandler.h"
 #include "Logger.h"
 
@@ -97,6 +98,13 @@ LRESULT CALLBACK windowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
         if (wParam & MK_LBUTTON) {
             InputHandler::processMouseMove(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
         }
+        return 0;
+
+    case WM_SIZE:
+            EventContext context;
+            context.i16[0] = GET_X_LPARAM(lParam);
+            context.i16[1] = GET_Y_LPARAM(lParam);
+            EventManager::notify(EventType::WINDOW_RESIZE, context);
         return 0;
 
     case WM_DESTROY:

@@ -32,14 +32,17 @@ void SampleBase::onInit(HINSTANCE hInstance, HWND hWnd)
     swapchain.create(globals);
     createGraphicsCommandBuffers();
     createSynchronizationObjects();
-    createDescriptorSetLayout();
-    createPipelineLayout();
-    createGraphicsPipeline();
-    createVertexBuffer();
+    createDescriptorSetLayouts();
+    createPipelineLayouts();
+    createPipelines();
+    createMesh();
     createIndexBuffer();
     createUniformBuffers();
-    createTextureImage();
+    createTexture();
     createDescriptorSets();
+    createRenderLayers();
+    createRenderObjects();
+    createFrameResources();
 }
 
 void SampleBase::onUpdate()
@@ -51,6 +54,8 @@ void SampleBase::onDestroy()
 {
     vkDeviceWaitIdle(globals.device.handle);
 
+    destroyFrameResources();
+    destroyRenderObjects();
     destroyDescriptorSets();
     destroyTextureImage();
     destroyUniformBuffers();
@@ -58,7 +63,7 @@ void SampleBase::onDestroy()
     destroyVertexBuffer();
     destroyGraphicsPipeline();
     destroyPipelineLayout();
-    destroyDescriptorSetLayout();
+    destroyDescriptorSetLayouts();
     destroySynchronizationObjects();
     destroyGraphicsCommandBuffers();
     swapchain.destroy(globals);
@@ -69,6 +74,28 @@ void SampleBase::onDestroy()
     debugMessenger.destroy(globals);
 #endif
     destroyInstance();
+}
+
+void SampleBase::onNotify(EventType type, EventContext context)
+{
+    switch (type) {
+    case EventType::WINDOW_RESIZE:
+        if (globals.device.handle != VK_NULL_HANDLE) {
+            vkDeviceWaitIdle(globals.device.handle);
+            globals.swapchain.extent = { (u16)context.i16[0], (u16)context.i16[1] };
+            destroyRenderPass();
+            createRenderPass();
+            swapchain.destroy(globals);
+            swapchain.create(globals);
+            destroyGraphicsPipeline();
+            createPipelines();
+            LOG_DEBUG("Swapchain recreated");
+        }
+        return;
+
+    default:
+        return;
+    }
 }
 
 void SampleBase::createInstance()
@@ -267,7 +294,7 @@ void SampleBase::createSynchronizationObjects()
 void SampleBase::drawFrame()
 {
     static u32 frameIndex = 0;
-    updateUniformBuffer(frameIndex);
+    updateFrameResources(frameIndex);
 
     THROW_IF_FAILED(
         vkWaitForFences(globals.device.handle, 1, &globals.synchronization.fences.previousFrameFinished[frameIndex], VK_TRUE, UINT64_MAX),

@@ -18,13 +18,14 @@
         }                                                                     \
     } while (0)
 
-std::vector<u8> loadShaderBinary(std::string const& filename);
-VkShaderModule createShaderModule(Globals& globals, std::vector<u8> const& code);
+std::vector<char> loadShaderCode(std::string const& filename);
 
-void createBuffer(Globals& globals, Buffer& buffer);
+void createBuffer(Globals const& globals, Buffer& buffer);
 void destroyBuffer(Globals& globals, Buffer& buffer);
-void copyBuffer(Globals& globals, Buffer& srcBuffer, Buffer& dstBuffer);
+void copyBuffer(Globals const& globals, Buffer& srcBuffer, Buffer& dstBuffer);
 void copyBufferToImage(Globals& globals, Buffer& buffer, Image& image);
+void mapBuffer(Globals const& globals, Buffer& buffer);
+void unmapBuffer(Globals const& globals, Buffer& buffer);
 
 void createImage(Globals& globals, Image& image);
 void destroyImage(Globals const& globals, Image const& image);
@@ -33,7 +34,9 @@ void transitionImageLayout(Globals& globals, Image& image, VkImageLayout oldLayo
 
 void createSampler(Globals& globals, Sampler& sampler);
 
-u32 findMemoryType(Globals& globals, VkMemoryRequirements const& requirements, VkMemoryPropertyFlags properties);
+u32 findMemoryType(Globals const& globals, VkMemoryRequirements const& requirements, VkMemoryPropertyFlags properties);
 
-VkCommandBuffer beginCommandBufferOneTimeSubmit(Globals& globals);
-void endCommandBufferOneTimeSubmit(Globals& globals, VkCommandBuffer commandBuffer);
+VkCommandBuffer beginCommandBufferOneTimeSubmit(Globals const& globals);
+void endCommandBufferOneTimeSubmit(Globals const& globals, VkCommandBuffer commandBuffer);
+
+u32 calculateAlignedSize(u32 size, u32 alignment);

@@ -9,16 +9,48 @@
 class Initializer {
 public:
     static VkShaderModuleCreateInfo shaderModuleCreateInfo(std::vector<char> const& code);
-    static VkPipelineShaderStageCreateInfo pipelineShaderStageCreateInfo(VkShaderStageFlagBits stage, VkShaderModule shader);
+
     static VkVertexInputBindingDescription vertexInputBindingDescription(u32 binding, u32 stride, VkVertexInputRate inputRate = VK_VERTEX_INPUT_RATE_VERTEX);
     static VkVertexInputAttributeDescription vertexInputAttributeDescription(u32 location, u32 binding, VkFormat format, u32 offset);
+
+    static VkViewport viewport(u32 width, u32 height);
+    static VkRect2D scissor(u32 width, u32 height);
+
+    static VkDescriptorPoolSize descriptorPoolSize(VkDescriptorType type, u32 descriptorCount);
+    static VkDescriptorPoolCreateInfo descriptorPoolCreateInfo(u32 maxSets, std::vector<VkDescriptorPoolSize> const& poolSizes);
+    static VkDescriptorSetLayoutBinding descriptorSetLayoutBinding(
+        u32 binding,
+        VkDescriptorType descriptorType,
+        u32 descriptorCount,
+        VkShaderStageFlags stageFlags);
+    static VkDescriptorSetLayoutBindingFlagsCreateInfo descriptorSetLayoutBindingFlagsCreateInfo(std::vector<VkDescriptorBindingFlags> const& bindingFlags);
+    static VkDescriptorSetLayoutCreateInfo descriptorSetLayoutCreateInfo(std::vector<VkDescriptorSetLayoutBinding> const& bindings, void const* next = nullptr);
+    static VkDescriptorSetVariableDescriptorCountAllocateInfo descriptorSetVariableDescriptorCountAllocateInfo(std::vector<u32> const& descriptorCounts);
+    static VkDescriptorSetAllocateInfo descriptorSetAllocateInfo(
+        VkDescriptorPool descriptorPool,
+        u32 descriptorSetCount,
+        std::vector<VkDescriptorSetLayout> const& setLayouts,
+        void const* next = nullptr);
+    static VkDescriptorBufferInfo descriptorBufferInfo(VkBuffer buffer, VkDeviceSize offset, VkDeviceSize range = VK_WHOLE_SIZE);
+    static VkDescriptorImageInfo descriptorImageInfo(VkSampler sampler, VkImageView imageView, VkImageLayout imageLayout);
+    static VkWriteDescriptorSet writeDescriptorSet(
+        VkDescriptorSet dstSet,
+        u32 dstBinding,
+        u32 dstArrayElement,
+        u32 descriptorCount,
+        VkDescriptorType descriptorType,
+        VkDescriptorImageInfo const* imageInfo,
+        VkDescriptorBufferInfo const* bufferInfo,
+        VkBufferView const* texelBufferView);
+
+    static VkPipelineShaderStageCreateInfo pipelineShaderStageCreateInfo(VkShaderStageFlagBits stage, VkShaderModule shader);
     static VkPipelineVertexInputStateCreateInfo pipelineVertexInputStateCreateInfo(
         std::vector<VkVertexInputBindingDescription> const& vertexBindingDescriptions,
         std::vector<VkVertexInputAttributeDescription> const& vertexAttributeDescriptions);
-    static VkPipelineInputAssemblyStateCreateInfo pipelineInputAssemblyStateCreateInfo(VkPrimitiveTopology topology, VkBool32 primitiveRestartEnable = VK_FALSE);
+    static VkPipelineInputAssemblyStateCreateInfo pipelineInputAssemblyStateCreateInfo(
+        VkPrimitiveTopology topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
+        VkBool32 primitiveRestartEnable = VK_FALSE);
     static VkPipelineTessellationStateCreateInfo pipelineTessellationStateCreateInfo();
-    static VkViewport viewport(float width, float height);
-    static VkRect2D scissor(u32 width, u32 height);
     static VkPipelineViewportStateCreateInfo pipelineViewportStateCreateInfo(std::vector<VkViewport> const& viewports, std::vector<VkRect2D> const& scissors);
     static VkPipelineRasterizationStateCreateInfo pipelineRasterizationStateCreateInfo(
         VkBool32 depthClampEnable = VK_FALSE,
@@ -57,12 +89,6 @@ public:
         VkColorComponentFlags colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT);
     static VkPipelineColorBlendStateCreateInfo pipelineColorBlendStateCreateInfo(std::vector<VkPipelineColorBlendAttachmentState> const& colorBlendAttachments);
     static VkPipelineDynamicStateCreateInfo pipelineDynamicStateCreateInfo(std::vector<VkDynamicState> const& dynamicStates);
-    static VkDescriptorSetLayoutBinding descriptorSetLayoutBinding(
-        u32 binding,
-        VkDescriptorType descriptorType,
-        u32 descriptorCount,
-        VkShaderStageFlags stageFlags);
-    static VkDescriptorSetLayoutCreateInfo descriptorSetLayoutCreateInfo(std::vector<VkDescriptorSetLayoutBinding> const& bindings);
     static VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo(
         std::vector<VkDescriptorSetLayout> const& setLayouts,
         std::vector<VkPushConstantRange> const& pushConstantRanges);
@@ -82,4 +108,11 @@ public:
         u32 subpass = 0,
         VkPipeline basePipelineHandle = VK_NULL_HANDLE,
         i32 basePipelineIndex = 0);
+
+    static VkCommandBufferBeginInfo commandBufferBeginInfo();
+    static VkRenderPassBeginInfo renderPassBeginInfo(
+        VkRenderPass renderPass,
+        VkFramebuffer framebuffer,
+        VkRect2D renderArea,
+        std::vector<VkClearValue> const& clearValues);
 };

@@ -32,17 +32,14 @@ void SampleBase::onInit(HINSTANCE hInstance, HWND hWnd)
     swapchain.create(globals);
     createGraphicsCommandBuffers();
     createSynchronizationObjects();
-    createDescriptorSetLayouts();
-    createPipelineLayouts();
-    createPipelines();
-    createMesh();
-    createIndexBuffer();
-    createUniformBuffers();
-    createTexture();
-    createDescriptorSets();
-    createRenderLayers();
+    createMeshes();
+    createTextures();
+    createMaterials();
     createRenderObjects();
     createFrameResources();
+    createResourceDescriptors();
+    createPushConstantRanges();
+    createPipelines();
 }
 
 void SampleBase::onUpdate()
@@ -54,16 +51,12 @@ void SampleBase::onDestroy()
 {
     vkDeviceWaitIdle(globals.device.handle);
 
+    destroyPipelines();
+    destroyPushConstantRanges();
+    destroyResourceDescriptors();
     destroyFrameResources();
-    destroyRenderObjects();
-    destroyDescriptorSets();
-    destroyTextureImage();
-    destroyUniformBuffers();
-    destroyIndexBuffer();
-    destroyVertexBuffer();
-    destroyGraphicsPipeline();
-    destroyPipelineLayout();
-    destroyDescriptorSetLayouts();
+    destroyTextures();
+    destroyMeshes();
     destroySynchronizationObjects();
     destroyGraphicsCommandBuffers();
     swapchain.destroy(globals);
@@ -87,7 +80,7 @@ void SampleBase::onNotify(EventType type, EventContext context)
             createRenderPass();
             swapchain.destroy(globals);
             swapchain.create(globals);
-            destroyGraphicsPipeline();
+            destroyPipelines();
             createPipelines();
             LOG_DEBUG("Swapchain recreated");
         }

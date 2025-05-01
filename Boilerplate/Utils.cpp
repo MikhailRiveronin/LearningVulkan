@@ -4,17 +4,17 @@
 
 std::vector<char> loadShaderCode(std::string const& filename)
 {
-    std::string shaderFolder = "Shaders/";
+    std::string shaderFolder = "D:/Projects/LearningVulkan/build/Shaders/";
     std::string path = shaderFolder + filename;
     std::ifstream file(path, std::ios::ate | std::ios::binary);
     if (!file.is_open()) {
         throw std::runtime_error("Failed to open file");
     }
 
-    auto fileSize = file.tellg();
+    auto fileSize = (u32)file.tellg();
     std::vector<char> buffer(fileSize);
     file.seekg(0);
-    file.read((char*)buffer.data(), fileSize);
+    file.read(buffer.data(), fileSize);
     file.close();
     return buffer;
 }
@@ -53,7 +53,7 @@ void createBuffer(Globals const& globals, Buffer& buffer)
         "Failed to bind buffer memory");
 }
 
-void destroyBuffer(Globals& globals, Buffer& buffer)
+void destroyBuffer(Globals const& globals, Buffer& buffer)
 {
     vkDestroyBuffer(globals.device.handle, buffer.handle, globals.allocator);
     vkFreeMemory(globals.device.handle, buffer.memory, globals.allocator);
@@ -93,17 +93,10 @@ void copyBufferToImage(Globals& globals, Buffer& buffer, Image& image)
     endCommandBufferOneTimeSubmit(globals, commandBuffer);
 }
 
-void mapBuffer(Globals const& globals, Buffer& buffer)
+VkDeviceSize calculateUniformBufferAlignment(Globals const& globals, VkDeviceSize size)
 {
-    THROW_IF_FAILED(
-        vkMapMemory(globals.device.handle, buffer.memory, 0, buffer.size, 0, &buffer.mapped),
-        __FILE__, __LINE__,
-        "Failed to map memory");
-}
-
-void unmapBuffer(Globals const& globals, Buffer& buffer)
-{
-    vkUnmapMemory(globals.device.handle, buffer.memory);
+    VkDeviceSize minAlignment = globals.device.support.properties.limits.minUniformBufferOffsetAlignment;
+    return (size + minAlignment - 1) & ~(minAlignment - 1);
 }
 
 void createImage(Globals& globals, Image& image)

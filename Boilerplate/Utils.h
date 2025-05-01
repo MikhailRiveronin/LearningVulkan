@@ -21,11 +21,10 @@
 std::vector<char> loadShaderCode(std::string const& filename);
 
 void createBuffer(Globals const& globals, Buffer& buffer);
-void destroyBuffer(Globals& globals, Buffer& buffer);
+void destroyBuffer(Globals const& globals, Buffer& buffer);
 void copyBuffer(Globals const& globals, Buffer& srcBuffer, Buffer& dstBuffer);
 void copyBufferToImage(Globals& globals, Buffer& buffer, Image& image);
-void mapBuffer(Globals const& globals, Buffer& buffer);
-void unmapBuffer(Globals const& globals, Buffer& buffer);
+VkDeviceSize calculateUniformBufferAlignment(Globals const& globals, VkDeviceSize size);
 
 void createImage(Globals& globals, Image& image);
 void destroyImage(Globals const& globals, Image const& image);
@@ -38,5 +37,3 @@ u32 findMemoryType(Globals const& globals, VkMemoryRequirements const& requireme
 
 VkCommandBuffer beginCommandBufferOneTimeSubmit(Globals const& globals);
 void endCommandBufferOneTimeSubmit(Globals const& globals, VkCommandBuffer commandBuffer);
-
-u32 calculateAlignedSize(u32 size, u32 alignment);

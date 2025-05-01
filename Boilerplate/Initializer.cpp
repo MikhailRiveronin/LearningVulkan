@@ -8,20 +8,7 @@ VkShaderModuleCreateInfo Initializer::shaderModuleCreateInfo(std::vector<char> c
     createInfo.pNext = nullptr;
     createInfo.flags = 0;
     createInfo.codeSize = code.size();
-    createInfo.pCode = (u32*)code.data();
-    return createInfo;
-}
-
-VkPipelineShaderStageCreateInfo Initializer::pipelineShaderStageCreateInfo(VkShaderStageFlagBits stage, VkShaderModule shader)
-{
-    VkPipelineShaderStageCreateInfo createInfo = {};
-    createInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    createInfo.pNext = nullptr;
-    createInfo.flags = 0;
-    createInfo.stage = stage;
-    createInfo.module = shader;
-    createInfo.pName = "main";
-    createInfo.pSpecializationInfo = nullptr;
+    createInfo.pCode = reinterpret_cast<u32 const*>(code.data());
     return createInfo;
 }
 
@@ -42,6 +29,162 @@ VkVertexInputAttributeDescription Initializer::vertexInputAttributeDescription(u
     description.format = format;
     description.offset = offset;
     return description;
+}
+
+VkViewport Initializer::viewport(u32 width, u32 height)
+{
+    VkViewport viewport = {};
+    viewport.x = 0;
+    viewport.y = 0;
+    viewport.width = static_cast<float>(width);
+    viewport.height = static_cast<float>(height);
+    viewport.minDepth = 0.f;
+    viewport.maxDepth = 1.f;
+    return viewport;
+}
+
+VkRect2D Initializer::scissor(u32 width, u32 height)
+{
+    VkRect2D scissor = {};
+    scissor.offset = { 0, 0 };
+    scissor.extent = { width, height };
+    return scissor;
+}
+
+VkDescriptorPoolSize Initializer::descriptorPoolSize(VkDescriptorType type, u32 descriptorCount)
+{
+    VkDescriptorPoolSize poolSize = {};
+    poolSize.type = type;
+    poolSize.descriptorCount = descriptorCount;
+    return poolSize;
+}
+
+VkDescriptorPoolCreateInfo Initializer::descriptorPoolCreateInfo(u32 maxSets, std::vector<VkDescriptorPoolSize> const& poolSizes)
+{
+    VkDescriptorPoolCreateInfo createInfo = {};
+    createInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    createInfo.pNext = nullptr;
+    createInfo.flags = 0;
+    createInfo.maxSets = maxSets;
+    createInfo.poolSizeCount = poolSizes.size();
+    createInfo.pPoolSizes = poolSizes.data();
+    return createInfo;
+}
+
+VkDescriptorSetLayoutBinding Initializer::descriptorSetLayoutBinding(
+    u32 binding,
+    VkDescriptorType descriptorType,
+    u32 descriptorCount,
+    VkShaderStageFlags stageFlags)
+{
+    VkDescriptorSetLayoutBinding layoutBinding = {};
+    layoutBinding.binding = binding;
+    layoutBinding.descriptorType = descriptorType;
+    layoutBinding.descriptorCount = descriptorCount;
+    layoutBinding.stageFlags = stageFlags;
+    layoutBinding.pImmutableSamplers = nullptr;
+    return layoutBinding;
+}
+
+VkDescriptorSetLayoutBindingFlagsCreateInfo Initializer::descriptorSetLayoutBindingFlagsCreateInfo(std::vector<VkDescriptorBindingFlags> const& bindingFlags)
+{
+    VkDescriptorSetLayoutBindingFlagsCreateInfo createInfo = {};
+    createInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO;
+    createInfo.pNext = nullptr;
+    createInfo.bindingCount = bindingFlags.size();
+    createInfo.pBindingFlags = bindingFlags.data();
+    return createInfo;
+}
+
+VkDescriptorSetLayoutCreateInfo Initializer::descriptorSetLayoutCreateInfo(std::vector<VkDescriptorSetLayoutBinding> const& bindings, void const* next)
+{
+    VkDescriptorSetLayoutCreateInfo createInfo = {};
+    createInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    createInfo.pNext = next;
+    createInfo.flags = 0;
+    createInfo.bindingCount = bindings.size();
+    createInfo.pBindings = bindings.data();
+    return createInfo;
+}
+
+VkDescriptorSetVariableDescriptorCountAllocateInfo Initializer::descriptorSetVariableDescriptorCountAllocateInfo(std::vector<u32> const& descriptorCounts)
+{
+    VkDescriptorSetVariableDescriptorCountAllocateInfo allocateInfo = {};
+    allocateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_ALLOCATE_INFO;
+    allocateInfo.pNext = nullptr;
+    allocateInfo.descriptorSetCount = descriptorCounts.size();
+    allocateInfo.pDescriptorCounts = descriptorCounts.data();
+    return allocateInfo;
+}
+
+VkDescriptorSetAllocateInfo Initializer::descriptorSetAllocateInfo(
+    VkDescriptorPool descriptorPool,
+    u32 descriptorSetCount,
+    std::vector<VkDescriptorSetLayout> const& setLayouts,
+    void const* next)
+{
+    VkDescriptorSetAllocateInfo allocateInfo = {};
+    allocateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    allocateInfo.pNext = next;
+    allocateInfo.descriptorPool = descriptorPool;
+    allocateInfo.descriptorSetCount = descriptorSetCount;
+    allocateInfo.pSetLayouts = setLayouts.data();
+    return allocateInfo;
+}
+
+VkDescriptorBufferInfo Initializer::descriptorBufferInfo(VkBuffer buffer, VkDeviceSize offset, VkDeviceSize range)
+{
+    VkDescriptorBufferInfo bufferInfo = {};
+    bufferInfo.buffer = buffer;
+    bufferInfo.offset = offset;
+    bufferInfo.range = range;
+    return bufferInfo;
+}
+
+VkDescriptorImageInfo Initializer::descriptorImageInfo(VkSampler sampler, VkImageView imageView, VkImageLayout imageLayout)
+{
+    VkDescriptorImageInfo imageInfo = {};
+    imageInfo.sampler = sampler;
+    imageInfo.imageView = imageView;
+    imageInfo.imageLayout = imageLayout;
+    return imageInfo;
+}
+
+VkWriteDescriptorSet Initializer::writeDescriptorSet(
+    VkDescriptorSet dstSet,
+    u32 dstBinding,
+    u32 dstArrayElement,
+    u32 descriptorCount,
+    VkDescriptorType descriptorType,
+    VkDescriptorImageInfo const* imageInfo,
+    VkDescriptorBufferInfo const* bufferInfo,
+    VkBufferView const* texelBufferView)
+{
+    VkWriteDescriptorSet descriptorWrite = {};
+    descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptorWrite.pNext = nullptr;
+    descriptorWrite.dstSet = dstSet;
+    descriptorWrite.dstBinding = dstBinding;
+    descriptorWrite.dstArrayElement = dstArrayElement;
+    descriptorWrite.descriptorCount = descriptorCount;
+    descriptorWrite.descriptorType = descriptorType;
+    descriptorWrite.pImageInfo = imageInfo;
+    descriptorWrite.pBufferInfo = bufferInfo;
+    descriptorWrite.pTexelBufferView = texelBufferView;
+    return descriptorWrite;
+}
+
+VkPipelineShaderStageCreateInfo Initializer::pipelineShaderStageCreateInfo(VkShaderStageFlagBits stage, VkShaderModule shader)
+{
+    VkPipelineShaderStageCreateInfo createInfo = {};
+    createInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    createInfo.pNext = nullptr;
+    createInfo.flags = 0;
+    createInfo.stage = stage;
+    createInfo.module = shader;
+    createInfo.pName = "main";
+    createInfo.pSpecializationInfo = nullptr;
+    return createInfo;
 }
 
 VkPipelineVertexInputStateCreateInfo Initializer::pipelineVertexInputStateCreateInfo(
@@ -78,26 +221,6 @@ VkPipelineTessellationStateCreateInfo Initializer::pipelineTessellationStateCrea
     createInfo.flags = 0;
     createInfo.patchControlPoints = 0;
     return createInfo;
-}
-
-VkViewport Initializer::viewport(float width, float height)
-{
-    VkViewport viewport = {};
-    viewport.x = 0;
-    viewport.y = 0;
-    viewport.width = width;
-    viewport.height = height;
-    viewport.minDepth = 0.f;
-    viewport.maxDepth = 1.f;
-    return viewport;
-}
-
-VkRect2D Initializer::scissor(u32 width, u32 height)
-{
-    VkRect2D scissor = {};
-    scissor.offset = { 0, 0 };
-    scissor.extent = { width, height };
-    return scissor;
 }
 
 VkPipelineViewportStateCreateInfo Initializer::pipelineViewportStateCreateInfo(std::vector<VkViewport> const& viewports, std::vector<VkRect2D> const& scissors)
@@ -238,32 +361,6 @@ VkPipelineDynamicStateCreateInfo Initializer::pipelineDynamicStateCreateInfo(std
     return createInfo;
 }
 
-VkDescriptorSetLayoutBinding Initializer::descriptorSetLayoutBinding(
-    u32 binding,
-    VkDescriptorType descriptorType,
-    u32 descriptorCount,
-    VkShaderStageFlags stageFlags)
-{
-    VkDescriptorSetLayoutBinding layoutBinding = {};
-    layoutBinding.binding = binding;
-    layoutBinding.descriptorType = descriptorType;
-    layoutBinding.descriptorCount = descriptorCount;
-    layoutBinding.stageFlags = stageFlags;
-    layoutBinding.pImmutableSamplers = nullptr;
-    return layoutBinding;
-}
-
-VkDescriptorSetLayoutCreateInfo Initializer::descriptorSetLayoutCreateInfo(std::vector<VkDescriptorSetLayoutBinding> const& bindings)
-{
-    VkDescriptorSetLayoutCreateInfo createInfo = {};
-    createInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    createInfo.pNext = nullptr;
-    createInfo.flags = 0;
-    createInfo.bindingCount = bindings.size();
-    createInfo.pBindings = bindings.data();
-    return createInfo;
-}
-
 VkPipelineLayoutCreateInfo Initializer::pipelineLayoutCreateInfo(
     std::vector<VkDescriptorSetLayout> const& setLayouts,
     std::vector<VkPushConstantRange> const& pushConstantRanges)
@@ -317,4 +414,31 @@ VkGraphicsPipelineCreateInfo Initializer::graphicsPipelineCreateInfo(
     createInfo.basePipelineHandle = basePipelineHandle;
     createInfo.basePipelineIndex = basePipelineIndex;
     return createInfo;
+}
+
+VkCommandBufferBeginInfo Initializer::commandBufferBeginInfo()
+{
+    VkCommandBufferBeginInfo beginInfo = {};
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    beginInfo.pNext = nullptr;
+    beginInfo.flags = 0;
+    beginInfo.pInheritanceInfo = nullptr;
+    return beginInfo;
+}
+
+VkRenderPassBeginInfo Initializer::renderPassBeginInfo(
+    VkRenderPass renderPass,
+    VkFramebuffer framebuffer,
+    VkRect2D renderArea,
+    std::vector<VkClearValue> const& clearValues)
+{
+    VkRenderPassBeginInfo beginInfo = {};
+    beginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    beginInfo.pNext = nullptr;
+    beginInfo.renderPass = renderPass;
+    beginInfo.framebuffer = framebuffer;
+    beginInfo.renderArea = renderArea;
+    beginInfo.clearValueCount = clearValues.size();
+    beginInfo.pClearValues = clearValues.data();
+    return beginInfo;
 }

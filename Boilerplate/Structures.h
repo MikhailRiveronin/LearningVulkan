@@ -16,8 +16,8 @@ struct Buffer {
     VkBufferUsageFlags usage = 0;
     VkMemoryPropertyFlags memoryProperties = 0;
 
-    VkDescriptorBufferInfo descriptor = {};
     void* mapped = nullptr;
+    u32 alignment = 0;
 };
 
 struct Image {
@@ -37,13 +37,11 @@ struct Image {
     u32 mipLevels = 1;
     u32 arrayLayers = 1;
 
-    VkImageUsageFlags usage;
-    VkMemoryPropertyFlags memoryProperties;
+    VkImageUsageFlags usage = 0;
+    VkMemoryPropertyFlags memoryProperties = 0;
 
     u32 queueCount = 0;
     u32* queueIndices = nullptr;
-
-    VkDescriptorImageInfo descriptor = {};
 };
 
 struct Sampler {
@@ -55,6 +53,12 @@ struct Sampler {
     VkSamplerAddressMode addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
     VkSamplerAddressMode addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
 };
+
+struct Texture {
+    Image image;
+    Sampler sampler;
+};
+
 
 struct Globals {
     VkAllocationCallbacks* allocator;
@@ -125,12 +129,6 @@ struct Globals {
     } graphicsCommandBuffer;
 
     struct {
-        VkPipelineLayout layout;
-        VkPipeline pipeline;
-        VkDescriptorSetLayout descriptorSetLayout;
-    } graphicsPipeline;
-
-    struct {
         struct {
             std::vector<VkSemaphore> imageAcquired;
             std::vector<VkSemaphore> renderFinished;
@@ -142,43 +140,66 @@ struct Globals {
     } synchronization;
 };
 
-struct RenderObject {
-    struct {
-        std::vector<Vertex> vertices;
-        std::vector<u16> indices;
-    } mesh;
-
-    struct {
-        u32 indexCount;
-        u32 firstIndex;
-        i32 vertexOffset;
-    } drawArgs;
-
-    glm::mat4 world = glm::mat4(1.f);
-};
-
-struct RenderLayer {
-    VkPipeline pipeline;
-    std::vector<RenderObject> renderObjects;
-    std::vector<VkDescriptorSetLayout> setLayouts;
-    std::vector<VkDescriptorSet> descriptorSets;
-};
-
-struct RenderPassConstants {
-    u32 binding = 0;
-    glm::mat4 world;
-    glm::mat4 proj;
-};
-
-
-
 struct Mesh {
-    std::vector<RenderObject> items;
-
-    std::vector<Submesh> submeshes;
-
+    struct DrawArgs {
+        u32 indexCount = 0;
+        u32 firstIndex = 0;
+        i32 vertexOffset = 0;
+    };
+    std::vector<DrawArgs> submeshes;
 
     Buffer vertexBuffer;
     Buffer indexBuffer;
+};
 
+struct Light {
+    glm::vec3 pos;
+    u32 padding0;
+    glm::vec3 ambient = glm::vec3(1.f);
+    u32 padding1;
+    glm::vec3 diffuse = glm::vec3(1.f);
+    u32 padding2;
+    glm::vec3 specular = glm::vec3(1.f);
+    u32 padding3;
+};
+
+struct Pass {
+    glm::mat4 view;
+    glm::mat4 proj;
+    Light light;
+    glm::vec3 viewPos;
+    u32 padding;
+};
+
+struct Material {
+    glm::vec3 ambient = glm::vec3(1.f);
+    u32 padding0;
+    glm::vec3 diffuse = glm::vec3(1.f);
+    u32 padding1;
+    glm::vec3 specular = glm::vec3(1.f);
+    float shininess = 0.f;
+    u32 texIndex = 0;
+    u32 padding3[3];
+};
+
+struct RenderObject {
+    glm::mat4 world = glm::mat4(1.f);
+    glm::mat4 texTransform = glm::mat4(1.f);
+
+    u32 meshIndex = 0;
+    u32 submeshIndex = 0;
+    u32 materialIndex = 0;
+    u32 padding;
+};
+
+struct FrameResource {
+    Buffer passBuffer;
+    Buffer materialBuffer;
+    Buffer renderObjectBuffer;
+};
+
+struct ResourceDescriptor {
+    VkDescriptorPool pool;
+    VkDescriptorSetLayout setLayout;
+    std::vector<VkDescriptorSet> sets;
 };

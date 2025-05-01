@@ -13,6 +13,7 @@ Camera::Camera(Globals const& globals, glm::vec3 const& pos) :
 {
     recalculateViewMatrix();
     matrices.proj = glm::perspective(glm::quarter_pi<float>(), (float)globals.swapchain.extent.width / (float)globals.swapchain.extent.height, 0.1f, 100.f);
+    matrices.proj[3][3] *= -1;
 }
 
 void Camera::onNotify(EventType type, EventContext context)
@@ -28,8 +29,8 @@ void Camera::onNotify(EventType type, EventContext context)
         i16 yOffset = context.i16[1] - lastPos.y;
         lastPos.x = context.i16[0];
         lastPos.y = context.i16[1];
-        yaw += (float)xOffset * mouseSensitivity;
-        pitch += (float)yOffset * mouseSensitivity;
+        yaw -= (float)xOffset * mouseSensitivity;
+        pitch -= (float)yOffset * mouseSensitivity;
         pitch = std::clamp(pitch, -89.f, 89.f);
 
         recalculateViewMatrix();

@@ -152,21 +152,52 @@ struct Mesh {
     Buffer indexBuffer;
 };
 
-struct Light {
+struct DirLight {
+    glm::vec3 dir;
+    u32 padding0;
+    glm::vec3 ambient;
+    u32 padding1;
+    glm::vec3 diffuse;
+    u32 padding2;
+    glm::vec3 specular;
+    u32 padding3;
+};
+
+struct SpotLight {
     glm::vec3 pos;
     u32 padding0;
-    glm::vec3 ambient = glm::vec3(1.f);
+    glm::vec3 dir;
     u32 padding1;
-    glm::vec3 diffuse = glm::vec3(1.f);
+    glm::vec3 ambient;
     u32 padding2;
-    glm::vec3 specular = glm::vec3(1.f);
+    glm::vec3 diffuse;
     u32 padding3;
+    glm::vec3 specular;
+    float cutOff;
+    float outerCutOff;
+    float constAtt;
+    float linearAtt;
+    float quadAtt;
+    u32 padding4[3];
+};
+
+struct PointLight {
+    glm::vec3 pos;
+    u32 padding0;
+    glm::vec3 ambient;
+    u32 padding1;
+    glm::vec3 diffuse;
+    u32 padding2;
+    glm::vec3 specular;
+    float constAtt;
+    float linearAtt;
+    float quadAtt;
+    u32 padding3[2];
 };
 
 struct Pass {
     glm::mat4 view;
     glm::mat4 proj;
-    Light light;
     glm::vec3 viewPos;
     u32 padding;
 };
@@ -178,8 +209,9 @@ struct Material {
     u32 padding1;
     glm::vec3 specular = glm::vec3(1.f);
     float shininess = 0.f;
-    u32 texIndex = 0;
-    u32 padding3[3];
+    u32 diffuseTexIndex = 0;
+    u32 specularTexIndex = 0;
+    u32 padding3[2];
 };
 
 struct RenderObject {
@@ -194,6 +226,9 @@ struct RenderObject {
 
 struct FrameResource {
     Buffer passBuffer;
+    Buffer dirLightBuffer;
+    Buffer spotLightBuffer;
+    Buffer pointLightBuffer;
     Buffer materialBuffer;
     Buffer renderObjectBuffer;
 };

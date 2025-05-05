@@ -1,6 +1,6 @@
 #include "DebugMessenger.h"
-#include "Logger.h"
 #include "Utils.h"
+#include "Logger.h"
 
 #include <stdexcept>
 

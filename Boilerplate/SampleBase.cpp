@@ -1,6 +1,6 @@
 #include "SampleBase.h"
-#include "Logger.h"
 #include "Utils.h"
+#include "Logger.h"
 
 #include <chrono>
 #include <stdio.h>
@@ -36,6 +36,7 @@ void SampleBase::onInit(HINSTANCE hInstance, HWND hWnd)
     createTextures();
     createMaterials();
     createRenderObjects();
+    createLights();
     createFrameResources();
     createResourceDescriptors();
     createPushConstantRanges();

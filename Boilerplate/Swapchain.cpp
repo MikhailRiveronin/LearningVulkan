@@ -1,9 +1,7 @@
-#include "Swapchain.h"
 #include "Utils.h"
+#include "Swapchain.h"
 
 #include <set>
-
-// #include <algorithm>
 
 void Swapchain::create(Globals& globals)
 {

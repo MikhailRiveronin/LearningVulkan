@@ -14,13 +14,13 @@ public:
     } matrices;
 
     glm::vec3 pos;
+    glm::vec3 target;
 
     Camera(Globals const& globals, glm::vec3 const& pos);
 
     void onNotify(EventType type, EventContext context) override;
 
 private:
-    glm::vec3 target;
     glm::vec3 right;
     float yaw;
     float pitch;

@@ -68,6 +68,8 @@ LRESULT CALLBACK windowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
 {
     static SampleBase* sample;
 
+    bool resizing = false;
+
     switch (message) {
     case WM_CREATE: {
         auto createStruct = (LPCREATESTRUCT)lParam;
@@ -101,10 +103,24 @@ LRESULT CALLBACK windowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
         return 0;
 
     case WM_SIZE:
-            EventContext context;
-            context.i16[0] = GET_X_LPARAM(lParam);
-            context.i16[1] = GET_Y_LPARAM(lParam);
-            EventManager::notify(EventType::WINDOW_RESIZE, context);
+        if (!(wParam & SIZE_MINIMIZED)) {
+            if (resizing) {
+
+            } else {
+                EventContext context;
+                context.i16[0] = GET_X_LPARAM(lParam);
+                context.i16[1] = GET_Y_LPARAM(lParam);
+                EventManager::notify(EventType::WINDOW_RESIZE, context);
+            }
+        }
+        return 0;
+
+    case WM_ENTERSIZEMOVE:
+        resizing = true;
+        return 0;
+
+    case WM_EXITSIZEMOVE:
+        resizing  = false;
         return 0;
 
     case WM_DESTROY:

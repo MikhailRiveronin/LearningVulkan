@@ -1,6 +1,6 @@
 #include "Device.h"
-#include "Logger.h"
 #include "Utils.h"
+#include "Logger.h"
 
 #include <optional>
 #include <set>
@@ -53,15 +53,14 @@ void Device::create(Globals& globals)
 
     VkPhysicalDeviceFeatures physicalDeviceFeatures = {};
     physicalDeviceFeatures.samplerAnisotropy = VK_TRUE;
-    physicalDeviceFeatures.shaderSampledImageArrayDynamicIndexing = VK_TRUE;
+    // physicalDeviceFeatures.shaderSampledImageArrayDynamicIndexing = VK_TRUE;
 
     VkPhysicalDeviceDescriptorIndexingFeatures physicalDeviceDescriptorIndexingFeatures = {};
     physicalDeviceDescriptorIndexingFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES;
     physicalDeviceDescriptorIndexingFeatures.pNext = nullptr;
-    physicalDeviceDescriptorIndexingFeatures.shaderSampledImageArrayNonUniformIndexing = VK_TRUE;
     physicalDeviceDescriptorIndexingFeatures.runtimeDescriptorArray = VK_TRUE;
-    physicalDeviceDescriptorIndexingFeatures.descriptorBindingVariableDescriptorCount = VK_TRUE;
     physicalDeviceDescriptorIndexingFeatures.descriptorBindingPartiallyBound = VK_TRUE;
+    physicalDeviceDescriptorIndexingFeatures.descriptorBindingVariableDescriptorCount = VK_TRUE;
 
     VkDeviceCreateInfo createInfo = {};
     createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;

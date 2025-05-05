@@ -44,6 +44,7 @@ private:
     virtual void createTextures() = 0;
     virtual void createMaterials() = 0;
     virtual void createRenderObjects() = 0;
+    virtual void createLights() = 0;
     virtual void createFrameResources() = 0;
     virtual void createResourceDescriptors() = 0;
     virtual void createPushConstantRanges() = 0;

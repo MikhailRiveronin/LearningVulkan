@@ -43,7 +43,8 @@ struct PointLight {
     float constAtt;
     float linearAtt;
     float quadAtt;
-    uint padding[2];
+    uint padding0;
+    uint padding1;
 };
 
 layout(std140, set = 0, binding = 3) readonly buffer PointLightBuffer {

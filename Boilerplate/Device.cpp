@@ -1,5 +1,5 @@
-#include "Device.h"
 #include "Utils.h"
+#include "Device.h"
 #include "Logger.h"
 
 #include <optional>

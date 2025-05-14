@@ -1,5 +1,5 @@
-#include "SampleBase.h"
 #include "Utils.h"
+#include "SampleBase.h"
 #include "Logger.h"
 
 #include <chrono>

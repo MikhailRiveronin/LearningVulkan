@@ -73,7 +73,7 @@ void copyBuffer(Globals const& globals, Buffer& srcBuffer, Buffer& dstBuffer)
     endCommandBufferOneTimeSubmit(globals, commandBuffer);
 }
 
-void copyBufferToImage(Globals& globals, Buffer& buffer, Image& image)
+void copyBufferToImage(Globals const& globals, Buffer& buffer, Image& image)
 {
     auto commandBuffer = beginCommandBufferOneTimeSubmit(globals);
 
@@ -99,7 +99,7 @@ VkDeviceSize calculateUniformBufferAlignment(Globals const& globals, VkDeviceSiz
     return (size + minAlignment - 1) & ~(minAlignment - 1);
 }
 
-void createImage(Globals& globals, Image& image)
+void createImage(Globals const& globals, Image& image)
 {
     VkImageCreateInfo createInfo = {};
     createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -139,7 +139,7 @@ void destroyImage(Globals const& globals, Image const& image)
     vkFreeMemory(globals.device.handle, image.memory, globals.allocator);
 }
 
-void createImageView(Globals& globals, Image& image)
+void createImageView(Globals const& globals, Image& image)
 {
     VkImageViewCreateInfo createInfo = {};
     createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -158,7 +158,7 @@ void createImageView(Globals& globals, Image& image)
     THROW_IF_FAILED(vkCreateImageView(globals.device.handle, &createInfo, globals.allocator, &image.view), __FILE__, __LINE__, "Failed to create image view");
 }
 
-void transitionImageLayout(Globals& globals, Image& image, VkImageLayout oldLayout, VkImageLayout newLayout)
+void transitionImageLayout(Globals const& globals, Image& image, VkImageLayout oldLayout, VkImageLayout newLayout)
 {
     auto commandBuffer = beginCommandBufferOneTimeSubmit(globals);
 
@@ -202,7 +202,7 @@ void transitionImageLayout(Globals& globals, Image& image, VkImageLayout oldLayo
     endCommandBufferOneTimeSubmit(globals, commandBuffer);
 }
 
-void createSampler(Globals& globals, Sampler& sampler)
+void createSampler(Globals const& globals, Sampler& sampler)
 {
     VkSamplerCreateInfo createInfo = {};
     createInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;

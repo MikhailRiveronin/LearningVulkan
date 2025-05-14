@@ -1,5 +1,5 @@
-#include "DebugMessenger.h"
 #include "Utils.h"
+#include "DebugMessenger.h"
 #include "Logger.h"
 
 #include <stdexcept>

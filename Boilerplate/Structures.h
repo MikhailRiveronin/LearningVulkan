@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Defines.h"
-#include "ProceduralMeshes/Vertex.h"
 
 #include <glm/glm.hpp>
 #include <vulkan/vulkan.h>
@@ -58,7 +57,6 @@ struct Texture {
     Image image;
     Sampler sampler;
 };
-
 
 struct Globals {
     VkAllocationCallbacks* allocator;

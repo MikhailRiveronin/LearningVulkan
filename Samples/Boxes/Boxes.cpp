@@ -1,17 +1,15 @@
+#include "Boilerplate/Application.h"
 #include "Boilerplate/Entry.h"
 #include "Boilerplate/EventManager.h"
+#include "Boilerplate/Initializer.h"
 #include "Boilerplate/ProceduralMeshes/Box.h"
 #include "Boilerplate/ProceduralMeshes/Sphere.h"
+#include "Boilerplate/SampleBase.h"
 #include "Boilerplate/Structures.h"
 #include "Boilerplate/Utils.h"
-#include "Boilerplate/SampleBase.h"
-#include "Boilerplate/Application.h"
-#include "Boilerplate/Initializer.h"
 
 #include <glm/gtc/matrix_transform.hpp>
 #include <stb_image.h>
-#include <iostream>
-#include <iomanip>
 
 class Boxes : public SampleBase {
 public:

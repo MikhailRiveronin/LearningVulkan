@@ -18,7 +18,6 @@ void GltfModel::load(std::string filename)
 
     scenes.resize(model.scenes.size());
     for (u32 i = 0; i < scenes.size(); ++i) {
-
     }
 }
 
@@ -28,45 +27,50 @@ void GltfModel::loadNodes()
     for (u32 i = 0; i < model.nodes.size(); ++i) {
         if (!model.nodes[i].matrix.empty()) {
             std::vector<float> matrix(model.nodes[i].matrix.size());
-            std::transform(model.nodes[i].matrix.begin(), model.nodes[i].matrix.end(), matrix.begin(), [](auto d) {
-                return static_cast<float>(d);
-            });
-            nodes[i].local = glm::make_mat4(matrix.data());
+            for (u32 i = 0; i < model.nodes[i].matrix.size(); ++i) {
+                matrix[i] = model.nodes[i].matrix[i];
+            }
+            nodes[i].localTransform = glm::make_mat4(matrix.data());
         } else {
-            std::vector<float> scale(model.nodes[i].scale.size());
-            std::transform(model.nodes[i].scale.begin(), model.nodes[i].scale.end(), scale.begin(), [](auto d) {
-                return static_cast<float>(d);
-            });
+            std::vector<float> scale(3, 1.f);
+            for (u32 i = 0; i < model.nodes[i].scale.size(); ++i) {
+                scale[i] = model.nodes[i].scale[i];
+            }
 
-            std::vector<float> rotation(model.nodes[i].rotation.size());
-            std::transform(model.nodes[i].rotation.begin(), model.nodes[i].rotation.end(), rotation.begin(), [](auto d) {
-                return static_cast<float>(d);
-            });
+            std::vector<float> rotation(4);
+            for (u32 i = 0; i < model.nodes[i].rotation.size(); ++i) {
+                rotation[i] = model.nodes[i].rotation[i];
+            }
 
-            std::vector<float> translation(model.nodes[i].translation.size());
-            std::transform(model.nodes[i].translation.begin(), model.nodes[i].translation.end(), translation.begin(), [](auto d) {
-                return static_cast<float>(d);
-            });
+            std::vector<float> translation(3);
+            for (u32 i = 0; i < model.nodes[i].translation.size(); ++i) {
+                translation[i] = model.nodes[i].translation[i];
+            }
 
-            nodes[i].local =
+            nodes[i].localTransform =
                 glm::translate(glm::mat4(1.0), glm::make_vec3(translation.data())) *
                 glm::mat4_cast(glm::make_quat(rotation.data())) *
                 glm::scale(glm::mat4(1.0), glm::make_vec3(scale.data()));
         }
     }
+
+    for (auto rootIndex : model.scenes[0].nodes) {
+        calculateGlobalTransform(rootIndex, glm::mat4(1.f));
+    }
 }
 
-void GltfModel::loadMeshes()
+void GltfModel::calculateGlobalTransform(u32 nodeIndex, glm::mat4 const& parentGlobalTransform)
+{
+    nodes[nodeIndex].globalTransform = parentGlobalTransform * nodes[nodeIndex].localTransform;
+    for (auto childIndex : model.nodes[nodeIndex].children) {
+        calculateGlobalTransform(childIndex, nodes[nodeIndex].globalTransform);
+    }
+}
+
+void GltfModel::loadMeshes(Globals const& globals)
 {
     meshes.resize(model.meshes.size());
-    std::vector<glm::vec3> positions;
-    std::vector<glm::vec3> normals;
-    std::vector<glm::vec4> tangents;
-    std::vector<glm::vec2> texCoords;
-    std::vector<glm::vec4> colors;
-    std::vector<glm::u16vec4> joints;
-    std::vector<glm::vec4> weights;
-    std::vector<u32> indices;
+    
     for (u32 i = 0; i < model.meshes.size(); ++i) {
         meshes[i].primitives.resize(model.meshes[i].primitives.size());
         for (u32 j = 0; j < model.meshes[i].primitives.size(); ++j) {
@@ -205,7 +209,7 @@ void GltfModel::loadMeshes()
                     }
 
                     case TINYGLTF_COMPONENT_TYPE_FLOAT: {
-                        std::vector<glm::vec3> data(accessor.count);
+                        std::vector<glm::vec4> data(accessor.count);
                         memcpy(data.data(), buffer.data.data() + accessor.byteOffset + bufferView.byteOffset, bufferView.byteLength);
                         colors.insert(colors.end(), data.begin(), data.end());
                         break;
@@ -327,10 +331,178 @@ void GltfModel::loadMeshes()
                     assert(false);
                 }
             }
+
+            meshes[i].primitives[j].materialIndex = model.meshes[i].primitives[j].material;
         }
     }
 
-    
+    if (!positions.empty()) {
+        Buffer stagingBuffer;
+        stagingBuffer.size = positions.size() * sizeof(positions[0]);
+        stagingBuffer.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+        stagingBuffer.memoryProperties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+        createBuffer(globals, stagingBuffer);
+        THROW_IF_FAILED(
+            vkMapMemory(globals.device.handle, stagingBuffer.memory, 0, stagingBuffer.size, 0, &stagingBuffer.mapped),
+            __FILE__, __LINE__,
+            "Failed to map memory");
+        memcpy(stagingBuffer.mapped, positions.data(), stagingBuffer.size);
+        vkUnmapMemory(globals.device.handle, stagingBuffer.memory);
+
+        vertexBuffers.positions.size = stagingBuffer.size;
+        vertexBuffers.positions.usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+        vertexBuffers.positions.memoryProperties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+        createBuffer(globals, vertexBuffers.positions);
+        copyBuffer(globals, stagingBuffer, vertexBuffers.positions);
+        destroyBuffer(globals, stagingBuffer);
+    }
+
+    if (!normals.empty()) {
+        Buffer stagingBuffer;
+        stagingBuffer.size = normals.size() * sizeof(normals[0]);
+        stagingBuffer.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+        stagingBuffer.memoryProperties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+        createBuffer(globals, stagingBuffer);
+        THROW_IF_FAILED(
+            vkMapMemory(globals.device.handle, stagingBuffer.memory, 0, stagingBuffer.size, 0, &stagingBuffer.mapped),
+            __FILE__, __LINE__,
+            "Failed to map memory");
+        memcpy(stagingBuffer.mapped, normals.data(), stagingBuffer.size);
+        vkUnmapMemory(globals.device.handle, stagingBuffer.memory);
+
+        vertexBuffers.normals.size = stagingBuffer.size;
+        vertexBuffers.normals.usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+        vertexBuffers.normals.memoryProperties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+        createBuffer(globals, vertexBuffers.normals);
+        copyBuffer(globals, stagingBuffer, vertexBuffers.normals);
+        destroyBuffer(globals, stagingBuffer);
+    }
+
+    if (!tangents.empty()) {
+        Buffer stagingBuffer;
+        stagingBuffer.size = tangents.size() * sizeof(tangents[0]);
+        stagingBuffer.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+        stagingBuffer.memoryProperties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+        createBuffer(globals, stagingBuffer);
+        THROW_IF_FAILED(
+            vkMapMemory(globals.device.handle, stagingBuffer.memory, 0, stagingBuffer.size, 0, &stagingBuffer.mapped),
+            __FILE__, __LINE__,
+            "Failed to map memory");
+        memcpy(stagingBuffer.mapped, tangents.data(), stagingBuffer.size);
+        vkUnmapMemory(globals.device.handle, stagingBuffer.memory);
+
+        vertexBuffers.tangents.size = stagingBuffer.size;
+        vertexBuffers.tangents.usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+        vertexBuffers.tangents.memoryProperties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+        createBuffer(globals, vertexBuffers.tangents);
+        copyBuffer(globals, stagingBuffer, vertexBuffers.tangents);
+        destroyBuffer(globals, stagingBuffer);
+    }
+
+    if (!texCoords.empty()) {
+        Buffer stagingBuffer;
+        stagingBuffer.size = texCoords.size() * sizeof(texCoords[0]);
+        stagingBuffer.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+        stagingBuffer.memoryProperties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+        createBuffer(globals, stagingBuffer);
+        THROW_IF_FAILED(
+            vkMapMemory(globals.device.handle, stagingBuffer.memory, 0, stagingBuffer.size, 0, &stagingBuffer.mapped),
+            __FILE__, __LINE__,
+            "Failed to map memory");
+        memcpy(stagingBuffer.mapped, texCoords.data(), stagingBuffer.size);
+        vkUnmapMemory(globals.device.handle, stagingBuffer.memory);
+
+        vertexBuffers.texCoords.size = stagingBuffer.size;
+        vertexBuffers.texCoords.usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+        vertexBuffers.texCoords.memoryProperties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+        createBuffer(globals, vertexBuffers.texCoords);
+        copyBuffer(globals, stagingBuffer, vertexBuffers.texCoords);
+        destroyBuffer(globals, stagingBuffer);
+    }
+
+    if (!colors.empty()) {
+        Buffer stagingBuffer;
+        stagingBuffer.size = colors.size() * sizeof(colors[0]);
+        stagingBuffer.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+        stagingBuffer.memoryProperties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+        createBuffer(globals, stagingBuffer);
+        THROW_IF_FAILED(
+            vkMapMemory(globals.device.handle, stagingBuffer.memory, 0, stagingBuffer.size, 0, &stagingBuffer.mapped),
+            __FILE__, __LINE__,
+            "Failed to map memory");
+        memcpy(stagingBuffer.mapped, colors.data(), stagingBuffer.size);
+        vkUnmapMemory(globals.device.handle, stagingBuffer.memory);
+
+        vertexBuffers.colors.size = stagingBuffer.size;
+        vertexBuffers.colors.usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+        vertexBuffers.colors.memoryProperties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+        createBuffer(globals, vertexBuffers.colors);
+        copyBuffer(globals, stagingBuffer, vertexBuffers.colors);
+        destroyBuffer(globals, stagingBuffer);
+    }
+
+    if (!joints.empty()) {
+        Buffer stagingBuffer;
+        stagingBuffer.size = joints.size() * sizeof(joints[0]);
+        stagingBuffer.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+        stagingBuffer.memoryProperties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+        createBuffer(globals, stagingBuffer);
+        THROW_IF_FAILED(
+            vkMapMemory(globals.device.handle, stagingBuffer.memory, 0, stagingBuffer.size, 0, &stagingBuffer.mapped),
+            __FILE__, __LINE__,
+            "Failed to map memory");
+        memcpy(stagingBuffer.mapped, joints.data(), stagingBuffer.size);
+        vkUnmapMemory(globals.device.handle, stagingBuffer.memory);
+
+        vertexBuffers.joints.size = stagingBuffer.size;
+        vertexBuffers.joints.usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+        vertexBuffers.joints.memoryProperties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+        createBuffer(globals, vertexBuffers.joints);
+        copyBuffer(globals, stagingBuffer, vertexBuffers.joints);
+        destroyBuffer(globals, stagingBuffer);
+    }
+
+    if (!weights.empty()) {
+        Buffer stagingBuffer;
+        stagingBuffer.size = weights.size() * sizeof(weights[0]);
+        stagingBuffer.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+        stagingBuffer.memoryProperties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+        createBuffer(globals, stagingBuffer);
+        THROW_IF_FAILED(
+            vkMapMemory(globals.device.handle, stagingBuffer.memory, 0, stagingBuffer.size, 0, &stagingBuffer.mapped),
+            __FILE__, __LINE__,
+            "Failed to map memory");
+        memcpy(stagingBuffer.mapped, weights.data(), stagingBuffer.size);
+        vkUnmapMemory(globals.device.handle, stagingBuffer.memory);
+
+        vertexBuffers.weights.size = stagingBuffer.size;
+        vertexBuffers.weights.usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+        vertexBuffers.weights.memoryProperties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+        createBuffer(globals, vertexBuffers.weights);
+        copyBuffer(globals, stagingBuffer, vertexBuffers.weights);
+        destroyBuffer(globals, stagingBuffer);
+    }
+
+    if (!indices.empty()) {
+        Buffer stagingBuffer;
+        stagingBuffer.size = indices.size() * sizeof(indices[0]);
+        stagingBuffer.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+        stagingBuffer.memoryProperties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+        createBuffer(globals, stagingBuffer);
+        THROW_IF_FAILED(
+            vkMapMemory(globals.device.handle, stagingBuffer.memory, 0, stagingBuffer.size, 0, &stagingBuffer.mapped),
+            __FILE__, __LINE__,
+            "Failed to map memory");
+        memcpy(stagingBuffer.mapped, indices.data(), stagingBuffer.size);
+        vkUnmapMemory(globals.device.handle, stagingBuffer.memory);
+
+        indexBuffer.size = stagingBuffer.size;
+        indexBuffer.usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
+        indexBuffer.memoryProperties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+        createBuffer(globals, indexBuffer);
+        copyBuffer(globals, stagingBuffer, indexBuffer);
+        destroyBuffer(globals, stagingBuffer);
+    }
 }
 
 void GltfModel::loadImages(Globals const& globals)
@@ -374,6 +546,8 @@ void GltfModel::loadMaterials()
         materials[i].shininess = 32.f;
         materials[i].diffuseTexIndex = model.materials[i].pbrMetallicRoughness.baseColorTexture.index;
     }
+
+
 }
 
 void GltfModel::createFrameResources(Globals const& globals)
@@ -400,9 +574,31 @@ void GltfModel::createFrameResources(Globals const& globals)
             copyBuffer(globals, stagingBuffer, frameResources[i].materialBuffer);
             destroyBuffer(globals, stagingBuffer);
         }
+        {
+            Buffer stagingBuffer;
+            stagingBuffer.alignment = calculateUniformBufferAlignment(globals, sizeof(nodes[0].globalTransform));
+            stagingBuffer.size = nodes.size() * stagingBuffer.alignment;
+            stagingBuffer.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+            stagingBuffer.memoryProperties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+            createBuffer(globals, stagingBuffer);
+            THROW_IF_FAILED(
+                vkMapMemory(globals.device.handle, stagingBuffer.memory, 0, stagingBuffer.size, 0, &stagingBuffer.mapped),
+                __FILE__, __LINE__,
+                "Failed to map memory");
+            for (u32 i = 0; i < nodes.size(); ++i) {
+                memcpy(reinterpret_cast<u8*>(stagingBuffer.mapped) + (i * stagingBuffer.alignment), &nodes[i].globalTransform, sizeof(nodes[0].globalTransform));
+            }
+            vkUnmapMemory(globals.device.handle, stagingBuffer.memory);
+
+            frameResources[i].renderObjectBuffer.alignment = stagingBuffer.alignment;
+            frameResources[i].renderObjectBuffer.size = stagingBuffer.size;
+            frameResources[i].renderObjectBuffer.usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
+            frameResources[i].renderObjectBuffer.memoryProperties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+            createBuffer(globals, frameResources[i].renderObjectBuffer);
+            copyBuffer(globals, stagingBuffer, frameResources[i].renderObjectBuffer);
+            destroyBuffer(globals, stagingBuffer);
+        }
     }
-
-
 }
 
 void GltfModel::createDescriptors(Globals const& globals)
@@ -456,12 +652,12 @@ void GltfModel::createDescriptors(Globals const& globals)
             }
             std::vector<VkWriteDescriptorSet> descriptorWrites(2);
             descriptorWrites[0] = Initializer::writeDescriptorSet(
-                resourceDescriptors[1].sets[i],
+                resourceDescriptors[0].sets[i],
                 0, 0, bufferDescriptors.size(),
                 VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
                 nullptr, bufferDescriptors.data(), nullptr);
             descriptorWrites[1] = Initializer::writeDescriptorSet(
-                resourceDescriptors[1].sets[i],
+                resourceDescriptors[0].sets[i],
                 1, 0, imageDescriptors.size(),
                 VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
                 imageDescriptors.data(), nullptr, nullptr);
@@ -473,7 +669,7 @@ void GltfModel::createDescriptors(Globals const& globals)
         poolSizes[0] = Initializer::descriptorPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, framesInFlight);
         auto descriptorPoolCreateInfo = Initializer::descriptorPoolCreateInfo(framesInFlight, poolSizes);
         THROW_IF_FAILED(
-            vkCreateDescriptorPool(globals.device.handle, &descriptorPoolCreateInfo, globals.allocator, &resourceDescriptors[2].pool),
+            vkCreateDescriptorPool(globals.device.handle, &descriptorPoolCreateInfo, globals.allocator, &resourceDescriptors[1].pool),
             __FILE__, __LINE__,
             "Failed to create descriptor pool");
 
@@ -481,24 +677,24 @@ void GltfModel::createDescriptors(Globals const& globals)
         bindings[0] = Initializer::descriptorSetLayoutBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
         auto descriptorSetLayoutCreateInfo = Initializer::descriptorSetLayoutCreateInfo(bindings);
         THROW_IF_FAILED(
-            vkCreateDescriptorSetLayout(globals.device.handle, &descriptorSetLayoutCreateInfo, globals.allocator, &resourceDescriptors[2].setLayout),
+            vkCreateDescriptorSetLayout(globals.device.handle, &descriptorSetLayoutCreateInfo, globals.allocator, &resourceDescriptors[1].setLayout),
             __FILE__, __LINE__,
             "Failed to create descriptor set layout");
 
-        std::vector<VkDescriptorSetLayout> setLayouts(framesInFlight, resourceDescriptors[2].setLayout);
-        auto descriptorSetAllocateInfo = Initializer::descriptorSetAllocateInfo(resourceDescriptors[2].pool, framesInFlight, setLayouts);
-        resourceDescriptors[2].sets.resize(framesInFlight);
+        std::vector<VkDescriptorSetLayout> setLayouts(framesInFlight, resourceDescriptors[1].setLayout);
+        auto descriptorSetAllocateInfo = Initializer::descriptorSetAllocateInfo(resourceDescriptors[1].pool, framesInFlight, setLayouts);
+        resourceDescriptors[1].sets.resize(framesInFlight);
         THROW_IF_FAILED(
-            vkAllocateDescriptorSets(globals.device.handle, &descriptorSetAllocateInfo, resourceDescriptors[2].sets.data()),
+            vkAllocateDescriptorSets(globals.device.handle, &descriptorSetAllocateInfo, resourceDescriptors[1].sets.data()),
             __FILE__, __LINE__,
             "Failed to allocate descriptor sets");
 
         for (u32 i = 0; i < framesInFlight; ++i) {
             std::vector<VkDescriptorBufferInfo> bufferDescriptors(1);
-            bufferDescriptors[0] = Initializer::descriptorBufferInfo(frameResources[i].renderObjectBuffer.handle, 0, sizeof(renderObjects[0]));
+            bufferDescriptors[0] = Initializer::descriptorBufferInfo(frameResources[i].renderObjectBuffer.handle, 0, sizeof(nodes[0].globalTransform));
             std::vector<VkWriteDescriptorSet> descriptorWrites(1);
             descriptorWrites[0] = Initializer::writeDescriptorSet(
-                resourceDescriptors[2].sets[i],
+                resourceDescriptors[1].sets[i],
                 0, 0, bufferDescriptors.size(),
                 VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC,
                 nullptr, bufferDescriptors.data(), nullptr);

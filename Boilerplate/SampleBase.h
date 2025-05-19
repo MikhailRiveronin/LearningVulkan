@@ -10,7 +10,9 @@
 #include <windows.h>
 #include <string>
 
-class GLFWwindow;
+#include <imgui.h>
+#include <backends/imgui_impl_win32.h>
+#include <backends/imgui_impl_vulkan.h>
 
 class SampleBase : public Listener {
 public:
@@ -52,7 +54,7 @@ private:
 
     void drawFrame();
     virtual void updateFrameResources(u32 frameIndex) = 0;
-    virtual void recordCommandBuffer(VkCommandBuffer commandBuffer, u32 imageIndex, u32 frameIndex) = 0;
+    virtual void recordCommandBuffer(VkCommandBuffer commandBuffer, u32 imageIndex, u32 frameIndex, ImDrawData* draw_data) = 0;
 
     virtual void destroyPipelines() = 0;
     virtual void destroyPushConstantRanges() = 0;

@@ -4,6 +4,9 @@ project(LearningVulkan LANGUAGES CXX)
 
 set (CMAKE_CXX_STANDARD 17)
 
+set(TINYGLTF_HEADER_ONLY ON CACHE INTERNAL "" FORCE)
+set(TINYGLTF_INSTALL OFF CACHE INTERNAL "" FORCE)
+
 find_package(Vulkan REQUIRED)
 add_subdirectory(ThirdParty)
 add_subdirectory(Samples)

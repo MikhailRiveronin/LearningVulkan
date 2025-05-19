@@ -1,6 +1,31 @@
 #include "Initializer.h"
 #include "Utils.h"
 
+static VkAttachmentDescription attachmentDescription(
+    VkAttachmentDescriptionFlags flags,
+    VkFormat format,
+    VkSampleCountFlagBits samples,
+    VkAttachmentLoadOp loadOp,
+    VkAttachmentStoreOp storeOp,
+    VkAttachmentLoadOp stencilLoadOp,
+    VkAttachmentStoreOp stencilStoreOp,
+    VkImageLayout initialLayout,
+    VkImageLayout finalLayout)
+{
+    VkAttachmentDescription description = {};
+    description.flags = flags;
+    description.format = format;
+    description.samples = samples;
+    description.loadOp = loadOp;
+    description.storeOp = storeOp;
+    description.stencilLoadOp = stencilLoadOp;
+    description.stencilStoreOp = stencilStoreOp;
+    description.initialLayout = initialLayout;
+    description.finalLayout = finalLayout;
+    return description;
+}
+
+
 VkShaderModuleCreateInfo Initializer::shaderModuleCreateInfo(std::vector<char> const& code)
 {
     VkShaderModuleCreateInfo createInfo = {};

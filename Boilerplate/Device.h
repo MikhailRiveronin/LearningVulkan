@@ -9,8 +9,8 @@ public:
     void create(Globals& globals);
     void destroy(Globals& globals);
 
-private:
     VkPhysicalDevice physicalDevice;
+private:
 
     void findPhysicalDevice(Globals& globals);
 };

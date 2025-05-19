@@ -11,6 +11,10 @@ static void checkRequiredLayersSupport(std::vector<char const*> const& requiredL
 static void initRequiredInstanceExtensions(std::vector<char const*>& requiredInstanceExtensions);
 static void checkRequiredInstanceExtensionsSupport(std::vector<char const*> const& requiredInstanceExtensions);
 
+static VkDescriptorPool g_DescriptorPool = VK_NULL_HANDLE;
+static bool show_demo_window = true;
+static ImDrawData* draw_data;
+
 SampleBase::SampleBase(u32 width, u32 height, std::string const& name) :
     width(width),
     height(height),
@@ -41,16 +45,64 @@ void SampleBase::onInit(HINSTANCE hInstance, HWND hWnd)
     createResourceDescriptors();
     createPushConstantRanges();
     createPipelines();
+
+    {
+        VkDescriptorPoolSize pool_sizes[] =
+        {
+            { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, IMGUI_IMPL_VULKAN_MINIMUM_IMAGE_SAMPLER_POOL_SIZE },
+        };
+        VkDescriptorPoolCreateInfo pool_info = {};
+        pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+        pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+        pool_info.maxSets = 0;
+        for (VkDescriptorPoolSize& pool_size : pool_sizes)
+            pool_info.maxSets += pool_size.descriptorCount;
+        pool_info.poolSizeCount = (uint32_t)IM_ARRAYSIZE(pool_sizes);
+        pool_info.pPoolSizes = pool_sizes;
+        vkCreateDescriptorPool(globals.device.handle, &pool_info, globals.allocator, &g_DescriptorPool);
+    }
+
+    ImGui_ImplVulkan_InitInfo init_info = {};
+    init_info.ApiVersion = VK_API_VERSION_1_3;              // Pass in your value of VkApplicationInfo::apiVersion, otherwise will default to header version.
+    init_info.Instance = globals.instance;
+    init_info.PhysicalDevice = device.physicalDevice;
+    init_info.Device = globals.device.handle;
+    init_info.QueueFamily = globals.device.queues.graphics.index;
+    init_info.Queue = globals.device.queues.graphics.handle;
+    init_info.PipelineCache = VK_NULL_HANDLE;
+    init_info.DescriptorPool = g_DescriptorPool;
+    init_info.RenderPass = globals.renderPass;
+    init_info.Subpass = 0;
+    init_info.MinImageCount = 2;
+    init_info.ImageCount = 2;
+    init_info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
+    init_info.Allocator = globals.allocator;
+    // init_info.CheckVkResultFn = check_vk_result;
+    ImGui_ImplVulkan_Init(&init_info);
 }
 
 void SampleBase::onUpdate()
 {
+    ImGui_ImplVulkan_NewFrame();
+    ImGui_ImplWin32_NewFrame();
+    ImGui::NewFrame();
+
+    if (show_demo_window)
+        ImGui::ShowDemoWindow(&show_demo_window);
+
+    ImGui::Render();
+    draw_data = ImGui::GetDrawData();
+
     drawFrame();
 }
 
 void SampleBase::onDestroy()
 {
     vkDeviceWaitIdle(globals.device.handle);
+
+    ImGui_ImplVulkan_Shutdown();
+    ImGui_ImplWin32_Shutdown();
+    ImGui::DestroyContext();
 
     destroyPipelines();
     destroyPushConstantRanges();
@@ -313,7 +365,7 @@ void SampleBase::drawFrame()
         "Failed to reset fences");
 
     vkResetCommandBuffer(globals.graphicsCommandBuffer.buffers[frameIndex], 0);
-    recordCommandBuffer(globals.graphicsCommandBuffer.buffers[frameIndex], imageIndex, frameIndex);
+    recordCommandBuffer(globals.graphicsCommandBuffer.buffers[frameIndex], imageIndex, frameIndex, draw_data);
 
     VkPipelineStageFlags waitPipelineStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
     VkSubmitInfo submitInfo = {};

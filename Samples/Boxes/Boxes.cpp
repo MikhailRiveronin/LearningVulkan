@@ -8,8 +8,8 @@
 #include "Boilerplate/Structures.h"
 #include "Boilerplate/Utils.h"
 
-#include <glm/gtc/matrix_transform.hpp>
 #include <stb_image.h>
+#include <glm/gtc/matrix_transform.hpp>
 
 class Boxes : public SampleBase {
 public:
@@ -50,7 +50,7 @@ private:
     void createPipelines() override;
 
     void updateFrameResources(u32 frameIndex) override;
-    void recordCommandBuffer(VkCommandBuffer commandBuffer, u32 imageIndex, u32 frameIndex) override;
+    void recordCommandBuffer(VkCommandBuffer commandBuffer, u32 imageIndex, u32 frameIndex, ImDrawData* draw_data) override;
 
     void destroyPipelines() override;
     void destroyPushConstantRanges() override;
@@ -839,7 +839,7 @@ void Boxes::createPipelines()
     }
 }
 
-void Boxes::recordCommandBuffer(VkCommandBuffer commandBuffer, u32 imageIndex, u32 frameIndex)
+void Boxes::recordCommandBuffer(VkCommandBuffer commandBuffer, u32 imageIndex, u32 frameIndex, ImDrawData* draw_data)
 {
     auto commandBufferBeginInfo = Initializer::commandBufferBeginInfo();
     THROW_IF_FAILED(
@@ -938,6 +938,8 @@ void Boxes::recordCommandBuffer(VkCommandBuffer commandBuffer, u32 imageIndex, u
             meshes[0].submeshes[renderObjects[i].submeshIndex].firstIndex,
             meshes[0].submeshes[renderObjects[i].submeshIndex].vertexOffset, 0);
     }
+
+    ImGui_ImplVulkan_RenderDrawData(draw_data, globals.graphicsCommandBuffer.buffers[frameIndex]);
 
     vkCmdEndRenderPass(commandBuffer);
     THROW_IF_FAILED(

@@ -8,7 +8,12 @@
 #include <windowsx.h>
 #include <stdexcept>
 
+#include <imgui.h>
+#include <backends/imgui_impl_win32.h>
+#include <backends/imgui_impl_vulkan.h>
+
 LRESULT CALLBACK windowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
+extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 void Application::run(SampleBase* sample)
 {
@@ -53,6 +58,15 @@ void Application::run(SampleBase* sample)
     }
 
     ShowWindow(hWnd, SW_SHOWNORMAL);
+
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO(); (void)io;
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+
+    ImGui::StyleColorsDark();
+    ImGui_ImplWin32_Init(hWnd);
+
     sample->onInit(hInstance, hWnd);
 
     MSG msg = {};
@@ -69,6 +83,9 @@ LRESULT CALLBACK windowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
     static SampleBase* sample;
 
     bool resizing = false;
+
+    if (ImGui_ImplWin32_WndProcHandler(hWnd, message, wParam, lParam))
+        return true;
 
     switch (message) {
     case WM_CREATE: {

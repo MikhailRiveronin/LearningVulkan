@@ -8,6 +8,17 @@
 
 class Initializer {
 public:
+    static VkAttachmentDescription attachmentDescription(
+        VkAttachmentDescriptionFlags flags,
+        VkFormat format,
+        VkSampleCountFlagBits samples,
+        VkAttachmentLoadOp loadOp,
+        VkAttachmentStoreOp storeOp,
+        VkAttachmentLoadOp stencilLoadOp,
+        VkAttachmentStoreOp stencilStoreOp,
+        VkImageLayout initialLayout,
+        VkImageLayout finalLayout);
+
     static VkShaderModuleCreateInfo shaderModuleCreateInfo(std::vector<char> const& code);
 
     static VkVertexInputBindingDescription vertexInputBindingDescription(u32 binding, u32 stride, VkVertexInputRate inputRate = VK_VERTEX_INPUT_RATE_VERTEX);

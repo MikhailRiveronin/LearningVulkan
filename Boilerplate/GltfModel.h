@@ -4,41 +4,57 @@
 #include "Structures.h"
 
 #include <glm/glm.hpp>
-#include <tiny_gltf.h>
 #include <string>
 #include <vector>
+
+#include <tiny_gltf.h>
 
 class GltfModel {
 public:
     void load(std::string filename);
 
-private:
+    void loadNodes();
+    void calculateGlobalTransform(u32 nodeIndex, glm::mat4 const& parentGlobalTransform);
+    void loadMeshes(Globals const& globals);
+    void loadImages(Globals const& globals);
+    void loadSamplers(Globals const& globals);
+    void loadMaterials();
+
+    void createFrameResources(Globals const& globals);
+    void createDescriptors(Globals const& globals);
+
     struct Node {
-        glm::mat4 local;
+        glm::mat4 localTransform;
+        glm::mat4 globalTransform;
     };
 
     struct Mesh {
         struct Primitive {
-            // std::vector<glm::vec3> positions;
-            // std::vector<glm::vec3> normals;
-            // std::vector<glm::vec3> tangents;
-            // std::vector<glm::vec2> texCoord;
-            // std::vector<glm::vec4> colors;
-            // std::vector<glm::u16vec4> joints;
-            // std::vector<glm::vec4> weights;
-            // std::vector<u16> indices;
-
             u32 indexCount = 0;
             u32 firstIndex = 0;
             i32 vertexOffset = 0;
+            u32 materialIndex = 0;
         };
         std::vector<Primitive> primitives;
     };
 
+    std::vector<glm::vec3> positions;
+    std::vector<glm::vec3> normals;
+    std::vector<glm::vec4> tangents;
+    std::vector<glm::vec2> texCoords;
+    std::vector<glm::vec4> colors;
+    std::vector<glm::u16vec4> joints;
+    std::vector<glm::vec4> weights;
+    std::vector<u32> indices;
+
     struct {
-        Buffer pos;
-        Buffer normal;
-        Buffer texCoord;
+        Buffer positions;
+        Buffer normals;
+        Buffer tangents;
+        Buffer texCoords;
+        Buffer colors;
+        Buffer joints;
+        Buffer weights;
     } vertexBuffers;
     Buffer indexBuffer;
 
@@ -57,13 +73,4 @@ private:
 
     std::vector<FrameResource> frameResources;
     std::vector<ResourceDescriptor> resourceDescriptors;
-
-    void loadNodes();
-    void loadMeshes();
-    void loadImages(Globals const& globals);
-    void loadSamplers(Globals const& globals);
-    void loadMaterials();
-
-    void createFrameResources(Globals const& globals);
-    void createDescriptors(Globals const& globals);
 };

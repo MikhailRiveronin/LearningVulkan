@@ -635,9 +635,9 @@ void GltfModel::createDescriptors(Globals const& globals)
             framesInFlight,
             setLayouts,
             &descriptorSetVariableDescriptorCountAllocateInfo);
-        resourceDescriptors[0].sets.resize(framesInFlight);
+        resourceDescriptors[0].handles.resize(framesInFlight);
         THROW_IF_FAILED(
-            vkAllocateDescriptorSets(globals.device.handle, &descriptorSetAllocateInfo, resourceDescriptors[0].sets.data()),
+            vkAllocateDescriptorSets(globals.device.handle, &descriptorSetAllocateInfo, resourceDescriptors[0].handles.data()),
             __FILE__, __LINE__,
             "Failed to allocate descriptor sets");
 
@@ -652,12 +652,12 @@ void GltfModel::createDescriptors(Globals const& globals)
             }
             std::vector<VkWriteDescriptorSet> descriptorWrites(2);
             descriptorWrites[0] = Initializer::writeDescriptorSet(
-                resourceDescriptors[0].sets[i],
+                resourceDescriptors[0].handles[i],
                 0, 0, bufferDescriptors.size(),
                 VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
                 nullptr, bufferDescriptors.data(), nullptr);
             descriptorWrites[1] = Initializer::writeDescriptorSet(
-                resourceDescriptors[0].sets[i],
+                resourceDescriptors[0].handles[i],
                 1, 0, imageDescriptors.size(),
                 VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
                 imageDescriptors.data(), nullptr, nullptr);
@@ -683,9 +683,9 @@ void GltfModel::createDescriptors(Globals const& globals)
 
         std::vector<VkDescriptorSetLayout> setLayouts(framesInFlight, resourceDescriptors[1].setLayout);
         auto descriptorSetAllocateInfo = Initializer::descriptorSetAllocateInfo(resourceDescriptors[1].pool, framesInFlight, setLayouts);
-        resourceDescriptors[1].sets.resize(framesInFlight);
+        resourceDescriptors[1].handles.resize(framesInFlight);
         THROW_IF_FAILED(
-            vkAllocateDescriptorSets(globals.device.handle, &descriptorSetAllocateInfo, resourceDescriptors[1].sets.data()),
+            vkAllocateDescriptorSets(globals.device.handle, &descriptorSetAllocateInfo, resourceDescriptors[1].handles.data()),
             __FILE__, __LINE__,
             "Failed to allocate descriptor sets");
 
@@ -694,7 +694,7 @@ void GltfModel::createDescriptors(Globals const& globals)
             bufferDescriptors[0] = Initializer::descriptorBufferInfo(frameResources[i].renderObjectBuffer.handle, 0, sizeof(nodes[0].globalTransform));
             std::vector<VkWriteDescriptorSet> descriptorWrites(1);
             descriptorWrites[0] = Initializer::writeDescriptorSet(
-                resourceDescriptors[1].sets[i],
+                resourceDescriptors[1].handles[i],
                 0, 0, bufferDescriptors.size(),
                 VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC,
                 nullptr, bufferDescriptors.data(), nullptr);

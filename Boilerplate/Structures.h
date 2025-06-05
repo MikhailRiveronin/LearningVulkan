@@ -53,6 +53,8 @@ struct Sampler {
     VkSamplerAddressMode addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
 };
 
+
+
 struct Texture {
     Image image;
     Sampler sampler;
@@ -231,8 +233,35 @@ struct FrameResource {
     Buffer renderObjectBuffer;
 };
 
-struct ResourceDescriptor {
-    VkDescriptorPool pool;
-    VkDescriptorSetLayout setLayout;
-    std::vector<VkDescriptorSet> sets;
+struct DescriptorSetBinding {
+    VkDescriptorSetLayoutBinding binding;
+    VkWriteDescriptorSet descriptorWrite;
+};
+
+struct DescriptorSets {
+    std::vector<VkDescriptorSet> handles;
+    VkDescriptorPool pool = VK_NULL_HANDLE;
+    VkDescriptorSetLayout setLayout = VK_NULL_HANDLE;
+};
+
+struct PipelineCreateInfo {
+    std::vector<VkPipelineShaderStageCreateInfo> stages;
+    std::vector<VkVertexInputBindingDescription> vertexBindingDescriptions;
+    std::vector<VkVertexInputAttributeDescription> vertexAttributeDescriptions;
+
+    std::vector<DescriptorSetBinding> descriptorSetCreateInfos;
+};
+
+struct Pipeline {
+    VkPipeline handle;
+    VkPipelineLayout layout;
+
+    DescriptorSets descriptorSets; // per-draw data
+    // VkPushConstantRange pushConstantRanges;
+    // std::vector<VkPushConstantRange> pushConstantRanges;
+};
+
+struct VertexInputState {
+    std::vector<VkVertexInputBindingDescription> vertexBindingDescriptions;
+    std::vector<VkVertexInputAttributeDescription> vertexAttributeDescriptions;
 };

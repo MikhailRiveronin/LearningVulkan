@@ -18,22 +18,46 @@ public:
         VkAttachmentStoreOp stencilStoreOp,
         VkImageLayout initialLayout,
         VkImageLayout finalLayout);
+    static VkAttachmentReference attachmentReference(u32 attachment, VkImageLayout layout);
+    static VkSubpassDescription subpassDescription(
+        VkSubpassDescriptionFlags flags,
+        VkPipelineBindPoint pipelineBindPoint,
+        std::vector<VkAttachmentReference> const& inputAttachments,
+        std::vector<VkAttachmentReference> const& colorAttachments,
+        std::vector<VkAttachmentReference> const& resolveAttachments,
+        VkAttachmentReference const* depthStencilAttachment,
+        std::vector<u32> const& preserveAttachments);
+    static VkSubpassDependency subpassDependency(
+        u32 srcSubpass,
+        u32 dstSubpass,
+        VkPipelineStageFlags srcStageMask,
+        VkPipelineStageFlags dstStageMask,
+        VkAccessFlags srcAccessMask,
+        VkAccessFlags dstAccessMask,
+        VkDependencyFlags dependencyFlags = 0);
+    static VkRenderPassCreateInfo renderPassCreateInfo(
+        std::vector<VkAttachmentDescription> const& attachments,
+        std::vector<VkSubpassDescription> const& subpasses,
+        std::vector<VkSubpassDependency> const& dependencies);
+
+    static VkFramebufferCreateInfo framebufferCreateInfo(
+        VkRenderPass renderPass,
+        std::vector<VkImageView> const& attachments,
+        VkExtent2D const& extent,
+        u32 layers = 1);
+
 
     static VkShaderModuleCreateInfo shaderModuleCreateInfo(std::vector<char> const& code);
 
     static VkVertexInputBindingDescription vertexInputBindingDescription(u32 binding, u32 stride, VkVertexInputRate inputRate = VK_VERTEX_INPUT_RATE_VERTEX);
     static VkVertexInputAttributeDescription vertexInputAttributeDescription(u32 location, u32 binding, VkFormat format, u32 offset);
 
-    static VkViewport viewport(u32 width, u32 height);
-    static VkRect2D scissor(u32 width, u32 height);
+    static VkViewport viewport(VkExtent2D extent);
+    static VkRect2D scissor(VkExtent2D extent);
 
+    static VkDescriptorSetLayoutBinding descriptorSetLayoutBinding(u32 binding, VkDescriptorType descriptorType, VkShaderStageFlags stageFlags);
     static VkDescriptorPoolSize descriptorPoolSize(VkDescriptorType type, u32 descriptorCount);
     static VkDescriptorPoolCreateInfo descriptorPoolCreateInfo(u32 maxSets, std::vector<VkDescriptorPoolSize> const& poolSizes);
-    static VkDescriptorSetLayoutBinding descriptorSetLayoutBinding(
-        u32 binding,
-        VkDescriptorType descriptorType,
-        u32 descriptorCount,
-        VkShaderStageFlags stageFlags);
     static VkDescriptorSetLayoutBindingFlagsCreateInfo descriptorSetLayoutBindingFlagsCreateInfo(std::vector<VkDescriptorBindingFlags> const& bindingFlags);
     static VkDescriptorSetLayoutCreateInfo descriptorSetLayoutCreateInfo(std::vector<VkDescriptorSetLayoutBinding> const& bindings, void const* next = nullptr);
     static VkDescriptorSetVariableDescriptorCountAllocateInfo descriptorSetVariableDescriptorCountAllocateInfo(std::vector<u32> const& descriptorCounts);
@@ -47,14 +71,11 @@ public:
     static VkWriteDescriptorSet writeDescriptorSet(
         VkDescriptorSet dstSet,
         u32 dstBinding,
-        u32 dstArrayElement,
-        u32 descriptorCount,
         VkDescriptorType descriptorType,
         VkDescriptorImageInfo const* imageInfo,
-        VkDescriptorBufferInfo const* bufferInfo,
-        VkBufferView const* texelBufferView);
+        VkDescriptorBufferInfo const* bufferInfo);
 
-    static VkPipelineShaderStageCreateInfo pipelineShaderStageCreateInfo(VkShaderStageFlagBits stage, VkShaderModule shader);
+    static VkPipelineShaderStageCreateInfo pipelineShaderStageCreateInfo(VkShaderStageFlagBits stage, VkShaderModule module);
     static VkPipelineVertexInputStateCreateInfo pipelineVertexInputStateCreateInfo(
         std::vector<VkVertexInputBindingDescription> const& vertexBindingDescriptions,
         std::vector<VkVertexInputAttributeDescription> const& vertexAttributeDescriptions);
@@ -125,5 +146,5 @@ public:
         VkRenderPass renderPass,
         VkFramebuffer framebuffer,
         VkRect2D renderArea,
-        std::vector<VkClearValue> const& clearValues);
+        std::vector<VkClearValue> const& clearValues = std::vector<VkClearValue>());
 };

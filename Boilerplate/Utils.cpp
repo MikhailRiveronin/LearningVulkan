@@ -1,4 +1,5 @@
 #include "Utils.h"
+#include "Initializer.h"
 
 #include <fstream>
 
@@ -285,6 +286,130 @@ void endCommandBufferOneTimeSubmit(Globals const& globals, VkCommandBuffer comma
         "Failed to wait for a queue to become idle");
 
     vkFreeCommandBuffers(globals.device.handle, globals.graphicsCommandBuffer.pool, 1, &commandBuffer);
+}
+
+void createDescriptorSets(Globals const& globals, std::vector<DescriptorSetBinding> const& descriptorSetBindings, DescriptorSets& descriptorSets)
+{
+    std::vector<VkDescriptorPoolSize> poolSizes(descriptorSetBindings.size());
+    std::vector<VkDescriptorSetLayoutBinding> bindings(descriptorSetBindings.size());
+    for (u32 i = 0; i < descriptorSetBindings.size(); ++i) {
+        poolSizes[i] = Initializer::descriptorPoolSize(descriptorSetBindings[i].binding.descriptorType, globals.swapchain.images.size());
+        bindings[i] = descriptorSetBindings[i].binding;
+    }
+    auto descriptorPoolCreateInfo = Initializer::descriptorPoolCreateInfo(globals.swapchain.images.size(), poolSizes);
+    THROW_IF_FAILED(
+        vkCreateDescriptorPool(globals.device.handle, &descriptorPoolCreateInfo, globals.allocator, &descriptorSets.pool),
+        __FILE__, __LINE__,
+        "Failed to create descriptor pool");
+
+    auto descriptorSetLayoutCreateInfo = Initializer::descriptorSetLayoutCreateInfo(bindings);
+    THROW_IF_FAILED(
+        vkCreateDescriptorSetLayout(globals.device.handle, &descriptorSetLayoutCreateInfo, globals.allocator, &descriptorSets.setLayout),
+        __FILE__, __LINE__,
+        "Failed to create descriptor set layout");
+    std::vector<VkDescriptorSetLayout> descriptorSetLayouts(globals.swapchain.images.size(), descriptorSets.setLayout);
+
+    descriptorSets.handles.resize(globals.swapchain.images.size());
+    auto descriptorSetAllocateInfo = Initializer::descriptorSetAllocateInfo(descriptorSets.pool, globals.swapchain.images.size(), descriptorSetLayouts);
+    THROW_IF_FAILED(
+        vkAllocateDescriptorSets(globals.device.handle, &descriptorSetAllocateInfo, descriptorSets.handles.data()),
+        __FILE__, __LINE__,
+        "Failed to allocate descriptor sets");
+
+    for (u32 i = 0; i < globals.swapchain.images.size(); ++i) {
+        std::vector<VkWriteDescriptorSet> descriptorWrites(descriptorSetBindings.size());
+        for (u32 j = 0; j < descriptorWrites.size(); ++j) {
+            descriptorWrites[j] = descriptorSetBindings[j].descriptorWrite;
+            descriptorWrites[j].dstSet = descriptorSets.handles[i];
+        }
+        vkUpdateDescriptorSets(globals.device.handle, descriptorWrites.size(), descriptorWrites.data(), 0, nullptr);
+    }
+}
+
+void destroyDescriptorSets(Globals const& globals, DescriptorSets& descriptorSets)
+{
+    vkDestroyDescriptorSetLayout(globals.device.handle, descriptorSets.setLayout, globals.allocator);
+    vkDestroyDescriptorPool(globals.device.handle, descriptorSets.pool, globals.allocator);
+}
+
+void createPipeline(Globals const& globals,  Pipeline& pipeline)
+{
+    std::vector<VkPipelineShaderStageCreateInfo> stages(2);
+    VkShaderModule shaderModule[2];
+    {
+        auto code = loadShaderCode(pipeline.vsFilename);
+        auto shaderModuleCreateInfo = Initializer::shaderModuleCreateInfo(code);
+        THROW_IF_FAILED(
+            vkCreateShaderModule(globals.device.handle, &shaderModuleCreateInfo, globals.allocator, &shaderModule[0]),
+            __FILE__, __LINE__,
+            "Failed to create shader module");
+        stages[0] = Initializer::pipelineShaderStageCreateInfo(VK_SHADER_STAGE_VERTEX_BIT, shaderModule[0]);
+    }
+    {
+        auto code = loadShaderCode(pipeline.fsFilename);
+        auto shaderModuleCreateInfo = Initializer::shaderModuleCreateInfo(code);
+        THROW_IF_FAILED(
+            vkCreateShaderModule(globals.device.handle, &shaderModuleCreateInfo, globals.allocator, &shaderModule[1]),
+            __FILE__, __LINE__,
+            "Failed to create shader module");
+        stages[1] = Initializer::pipelineShaderStageCreateInfo(VK_SHADER_STAGE_FRAGMENT_BIT, shaderModule[1]);
+    }
+
+    auto vertexInputState = Initializer::pipelineVertexInputStateCreateInfo(pipeline.vertexBindingDescriptions, pipeline.vertexAttributeDescriptions);
+    auto inputAssemblyState = Initializer::pipelineInputAssemblyStateCreateInfo();
+    auto tessellationState = Initializer::pipelineTessellationStateCreateInfo();
+
+    std::vector<VkViewport> viewports(1);
+    viewports[0] = Initializer::viewport(globals.swapchain.extent.width, globals.swapchain.extent.height);
+    std::vector<VkRect2D> scissors(1);
+    scissors[0] = Initializer::scissor(globals.swapchain.extent.width, globals.swapchain.extent.height);
+    auto viewportState = Initializer::pipelineViewportStateCreateInfo(viewports, scissors);
+
+    auto rasterizationState = Initializer::pipelineRasterizationStateCreateInfo();
+    auto multisampleState = Initializer::pipelineMultisampleStateCreateInfo();
+    auto depthStencilState = Initializer::pipelineDepthStencilStateCreateInfo();
+
+    std::vector<VkPipelineColorBlendAttachmentState> colorBlendAttachmentStates(1);
+    colorBlendAttachmentStates[0] = Initializer::pipelineColorBlendAttachmentState();
+    auto colorBlendState = Initializer::pipelineColorBlendStateCreateInfo(colorBlendAttachmentStates);
+
+    std::vector<VkDynamicState> dynamicStates(2);
+    dynamicStates[0] = VK_DYNAMIC_STATE_VIEWPORT;
+    dynamicStates[1] = VK_DYNAMIC_STATE_SCISSOR;
+    auto dynamicState = Initializer::pipelineDynamicStateCreateInfo(dynamicStates);
+
+    auto pipelineLayoutCreateInfo = Initializer::pipelineLayoutCreateInfo(pipeline.descriptorSetLayouts, pipeline.pushConstantRanges);
+    THROW_IF_FAILED(
+        vkCreatePipelineLayout(globals.device.handle, &pipelineLayoutCreateInfo, globals.allocator, &pipeline.layout),
+        __FILE__, __LINE__,
+        "Failed to create pipeline layout");
+
+    auto createInfo = Initializer::graphicsPipelineCreateInfo(
+        stages,
+        &vertexInputState,
+        &inputAssemblyState,
+        &tessellationState,
+        &viewportState,
+        &rasterizationState,
+        &multisampleState,
+        &depthStencilState,
+        &colorBlendState,
+        &dynamicState,
+        pipeline.layout,
+        globals.renderPass);
+    THROW_IF_FAILED(
+        vkCreateGraphicsPipelines(globals.device.handle, VK_NULL_HANDLE, 1, &createInfo, globals.allocator, &pipeline.handle),
+        __FILE__, __LINE__,
+        "Failed to create graphics pipeline");
+
+    vkDestroyShaderModule(globals.device.handle, shaderModule[0], globals.allocator);
+    vkDestroyShaderModule(globals.device.handle, shaderModule[1], globals.allocator);
+}
+
+void destroyPipeline(Globals const& globals, Pipeline& pipeline)
+{
+    vkDestroyPipelineLayout(globals.device.handle, pipeline.layout, globals.allocator);
+    vkDestroyPipeline(globals.device.handle, pipeline.handle, globals.allocator);
 }
 
 u32 calculateAlignedSize(u32 size, u32 alignment)

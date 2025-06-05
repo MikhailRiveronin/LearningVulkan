@@ -21,7 +21,7 @@ private:
     std::vector<Material> materials;
     std::vector<RenderObject> renderObjects;
     std::vector<FrameResource> frameResources;
-    std::vector<ResourceDescriptor> resourceDescriptors;
+    std::vector<DescriptorSets> resourceDescriptors;
     std::vector<VkPushConstantRange> pushConstantRanges;
     std::vector<VkPipelineLayout> pipelineLayouts;
     std::vector<VkPipeline> pipelines;
@@ -537,9 +537,9 @@ void Boxes::createResourceDescriptors()
 
         std::vector<VkDescriptorSetLayout> setLayouts(framesInFlight, resourceDescriptors[0].setLayout);
         auto descriptorSetAllocateInfo = Initializer::descriptorSetAllocateInfo(resourceDescriptors[0].pool, framesInFlight, setLayouts);
-        resourceDescriptors[0].sets.resize(framesInFlight);
+        resourceDescriptors[0].handles.resize(framesInFlight);
         THROW_IF_FAILED(
-            vkAllocateDescriptorSets(globals.device.handle, &descriptorSetAllocateInfo, resourceDescriptors[0].sets.data()),
+            vkAllocateDescriptorSets(globals.device.handle, &descriptorSetAllocateInfo, resourceDescriptors[0].handles.data()),
             __FILE__, __LINE__,
             "Failed to allocate descriptor sets");
 
@@ -552,12 +552,12 @@ void Boxes::createResourceDescriptors()
             storageBufferDescriptors[0] = Initializer::descriptorBufferInfo(frameResources[i].pointLightBuffer.handle, 0);
             std::vector<VkWriteDescriptorSet> descriptorWrites(2);
             descriptorWrites[0] = Initializer::writeDescriptorSet(
-                resourceDescriptors[0].sets[i],
+                resourceDescriptors[0].handles[i],
                 0, 0, uniformBufferDescriptors.size(),
                 VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
                 nullptr, uniformBufferDescriptors.data(), nullptr);
             descriptorWrites[1] = Initializer::writeDescriptorSet(
-                resourceDescriptors[0].sets[i],
+                resourceDescriptors[0].handles[i],
                 3, 0, storageBufferDescriptors.size(),
                 VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
                 nullptr, storageBufferDescriptors.data(), nullptr);
@@ -595,9 +595,9 @@ void Boxes::createResourceDescriptors()
             framesInFlight,
             setLayouts,
             &descriptorSetVariableDescriptorCountAllocateInfo);
-        resourceDescriptors[1].sets.resize(framesInFlight);
+        resourceDescriptors[1].handles.resize(framesInFlight);
         THROW_IF_FAILED(
-            vkAllocateDescriptorSets(globals.device.handle, &descriptorSetAllocateInfo, resourceDescriptors[1].sets.data()),
+            vkAllocateDescriptorSets(globals.device.handle, &descriptorSetAllocateInfo, resourceDescriptors[1].handles.data()),
             __FILE__, __LINE__,
             "Failed to allocate descriptor sets");
 
@@ -612,12 +612,12 @@ void Boxes::createResourceDescriptors()
             }
             std::vector<VkWriteDescriptorSet> descriptorWrites(2);
             descriptorWrites[0] = Initializer::writeDescriptorSet(
-                resourceDescriptors[1].sets[i],
+                resourceDescriptors[1].handles[i],
                 0, 0, bufferDescriptors.size(),
                 VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
                 nullptr, bufferDescriptors.data(), nullptr);
             descriptorWrites[1] = Initializer::writeDescriptorSet(
-                resourceDescriptors[1].sets[i],
+                resourceDescriptors[1].handles[i],
                 1, 0, imageDescriptors.size(),
                 VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
                 imageDescriptors.data(), nullptr, nullptr);
@@ -643,9 +643,9 @@ void Boxes::createResourceDescriptors()
 
         std::vector<VkDescriptorSetLayout> setLayouts(framesInFlight, resourceDescriptors[2].setLayout);
         auto descriptorSetAllocateInfo = Initializer::descriptorSetAllocateInfo(resourceDescriptors[2].pool, framesInFlight, setLayouts);
-        resourceDescriptors[2].sets.resize(framesInFlight);
+        resourceDescriptors[2].handles.resize(framesInFlight);
         THROW_IF_FAILED(
-            vkAllocateDescriptorSets(globals.device.handle, &descriptorSetAllocateInfo, resourceDescriptors[2].sets.data()),
+            vkAllocateDescriptorSets(globals.device.handle, &descriptorSetAllocateInfo, resourceDescriptors[2].handles.data()),
             __FILE__, __LINE__,
             "Failed to allocate descriptor sets");
 
@@ -654,7 +654,7 @@ void Boxes::createResourceDescriptors()
             bufferDescriptors[0] = Initializer::descriptorBufferInfo(frameResources[i].renderObjectBuffer.handle, 0, sizeof(renderObjects[0]));
             std::vector<VkWriteDescriptorSet> descriptorWrites(1);
             descriptorWrites[0] = Initializer::writeDescriptorSet(
-                resourceDescriptors[2].sets[i],
+                resourceDescriptors[2].handles[i],
                 0, 0, bufferDescriptors.size(),
                 VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC,
                 nullptr, bufferDescriptors.data(), nullptr);
@@ -877,14 +877,14 @@ void Boxes::recordCommandBuffer(VkCommandBuffer commandBuffer, u32 imageIndex, u
         commandBuffer,
         VK_PIPELINE_BIND_POINT_GRAPHICS,
         pipelineLayouts[0],
-        0, 1, &resourceDescriptors[0].sets[frameIndex],
+        0, 1, &resourceDescriptors[0].handles[frameIndex],
         0, nullptr);
 
     vkCmdBindDescriptorSets(
         commandBuffer,
         VK_PIPELINE_BIND_POINT_GRAPHICS,
         pipelineLayouts[0],
-        1, 1, &resourceDescriptors[1].sets[frameIndex],
+        1, 1, &resourceDescriptors[1].handles[frameIndex],
         0, nullptr);
 
     vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelines[0]);
@@ -896,7 +896,7 @@ void Boxes::recordCommandBuffer(VkCommandBuffer commandBuffer, u32 imageIndex, u
             commandBuffer,
             VK_PIPELINE_BIND_POINT_GRAPHICS,
             pipelineLayouts[0],
-            2, 1, &resourceDescriptors[2].sets[frameIndex],
+            2, 1, &resourceDescriptors[2].handles[frameIndex],
             1, &dynamicOffset);
 
         vkCmdDrawIndexed(
@@ -929,7 +929,7 @@ void Boxes::recordCommandBuffer(VkCommandBuffer commandBuffer, u32 imageIndex, u
             commandBuffer,
             VK_PIPELINE_BIND_POINT_GRAPHICS,
             pipelineLayouts[1],
-            2, 1, &resourceDescriptors[2].sets[frameIndex],
+            2, 1, &resourceDescriptors[2].handles[frameIndex],
             1, &dynamicOffset);
 
         vkCmdDrawIndexed(

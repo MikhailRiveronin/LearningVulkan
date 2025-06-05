@@ -72,5 +72,5 @@ public:
     std::vector<Material> materials;
 
     std::vector<FrameResource> frameResources;
-    std::vector<ResourceDescriptor> resourceDescriptors;
+    std::vector<DescriptorSets> resourceDescriptors;
 };

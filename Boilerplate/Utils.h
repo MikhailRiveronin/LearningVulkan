@@ -8,6 +8,7 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
+#include <unordered_map>
 
 #define THROW_IF_FAILED(result, file, line, message)                          \
     do  {                                                                     \
@@ -36,3 +37,15 @@ u32 findMemoryType(Globals const& globals, VkMemoryRequirements const& requireme
 
 VkCommandBuffer beginCommandBufferOneTimeSubmit(Globals const& globals);
 void endCommandBufferOneTimeSubmit(Globals const& globals, VkCommandBuffer commandBuffer);
+
+void createDescriptorSets(Globals const& globals, std::vector<DescriptorSetBinding> const& descriptorSetBindings, DescriptorSets& descriptorSets);
+void destroyDescriptorSets(Globals const& globals, DescriptorSets& descriptorSets);
+
+void createPipeline(
+    Globals const& globals,
+    std::unordered_map<VkShaderStageFlagBits, std::string> shaderStages,
+    VertexInputState const& vertexInputState,
+    std::vector<VkDescriptorSetLayout> descriptorSetLayouts,
+    std::vector<VkPushConstantRange> pushConstantRanges,
+    std::vector<PipelineCreateInfo> const& pipelineCreateInfos);
+void destroyPipeline(Globals const& globals, Pipeline& pipeline);

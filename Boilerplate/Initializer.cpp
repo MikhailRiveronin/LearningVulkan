@@ -1,7 +1,7 @@
 #include "Initializer.h"
 #include "Utils.h"
 
-static VkAttachmentDescription attachmentDescription(
+VkAttachmentDescription Initializer::attachmentDescription(
     VkAttachmentDescriptionFlags flags,
     VkFormat format,
     VkSampleCountFlagBits samples,
@@ -25,6 +25,93 @@ static VkAttachmentDescription attachmentDescription(
     return description;
 }
 
+VkAttachmentReference Initializer::attachmentReference(u32 attachment, VkImageLayout layout)
+{
+    VkAttachmentReference reference = {};
+    reference.attachment = 0;
+    reference.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    return reference;
+}
+
+VkSubpassDescription Initializer::subpassDescription(
+    VkSubpassDescriptionFlags flags,
+    VkPipelineBindPoint pipelineBindPoint,
+    std::vector<VkAttachmentReference> const& inputAttachments,
+    std::vector<VkAttachmentReference> const& colorAttachments,
+    std::vector<VkAttachmentReference> const& resolveAttachments,
+    VkAttachmentReference const* depthStencilAttachment,
+    std::vector<u32> const& preserveAttachments)
+{
+    VkSubpassDescription description = {};
+    description.flags = flags;
+    description.pipelineBindPoint = pipelineBindPoint;
+    description.inputAttachmentCount = inputAttachments.size();
+    description.pInputAttachments = inputAttachments.data();
+    description.colorAttachmentCount = colorAttachments.size();
+    description.pColorAttachments = colorAttachments.data();
+    description.pResolveAttachments = resolveAttachments.data();
+    description.pDepthStencilAttachment = depthStencilAttachment;
+    description.preserveAttachmentCount = preserveAttachments.size();
+    description.pPreserveAttachments = preserveAttachments.data();
+    return description;
+}
+
+VkSubpassDependency Initializer::subpassDependency(
+    u32 srcSubpass,
+    u32 dstSubpass,
+    VkPipelineStageFlags srcStageMask,
+    VkPipelineStageFlags dstStageMask,
+    VkAccessFlags srcAccessMask,
+    VkAccessFlags dstAccessMask,
+    VkDependencyFlags dependencyFlags)
+{
+    VkSubpassDependency dependency = {};
+    dependency.srcSubpass = srcSubpass;
+    dependency.dstSubpass = dstSubpass;
+    dependency.srcStageMask = srcStageMask;
+    dependency.dstStageMask = dstStageMask;
+    dependency.srcAccessMask = srcAccessMask;
+    dependency.dstAccessMask = dstAccessMask;
+    dependency.dependencyFlags = dependencyFlags;
+    return dependency;
+}
+
+VkRenderPassCreateInfo Initializer::renderPassCreateInfo(
+    std::vector<VkAttachmentDescription> const& attachments,
+    std::vector<VkSubpassDescription> const& subpasses,
+    std::vector<VkSubpassDependency> const& dependencies)
+{
+    VkRenderPassCreateInfo createInfo = {};
+    createInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+    createInfo.pNext = nullptr;
+    createInfo.flags = 0;
+    createInfo.attachmentCount = attachments.size();
+    createInfo.pAttachments = attachments.data();
+    createInfo.subpassCount = subpasses.size();
+    createInfo.pSubpasses = subpasses.data();
+    createInfo.dependencyCount = dependencies.size();
+    createInfo.pDependencies = dependencies.data();
+    return createInfo;
+}
+
+VkFramebufferCreateInfo Initializer::framebufferCreateInfo(
+    VkRenderPass renderPass,
+    std::vector<VkImageView> const& attachments,
+    VkExtent2D const& extent,
+    u32 layers)
+{
+    VkFramebufferCreateInfo createInfo = {};
+    createInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+    createInfo.pNext = nullptr;
+    createInfo.flags = 0;
+    createInfo.renderPass = renderPass;
+    createInfo.attachmentCount = attachments.size();
+    createInfo.pAttachments = attachments.data();
+    createInfo.width = extent.width;
+    createInfo.height = extent.height;
+    createInfo.layers = layers;
+    return createInfo;
+}
 
 VkShaderModuleCreateInfo Initializer::shaderModuleCreateInfo(std::vector<char> const& code)
 {
@@ -56,24 +143,38 @@ VkVertexInputAttributeDescription Initializer::vertexInputAttributeDescription(u
     return description;
 }
 
-VkViewport Initializer::viewport(u32 width, u32 height)
+VkViewport Initializer::viewport(VkExtent2D extent)
 {
     VkViewport viewport = {};
     viewport.x = 0;
     viewport.y = 0;
-    viewport.width = static_cast<float>(width);
-    viewport.height = static_cast<float>(height);
+    viewport.width = static_cast<float>(extent.width);
+    viewport.height = static_cast<float>(extent.height);
     viewport.minDepth = 0.f;
     viewport.maxDepth = 1.f;
     return viewport;
 }
 
-VkRect2D Initializer::scissor(u32 width, u32 height)
+VkRect2D Initializer::scissor(VkExtent2D extent)
 {
     VkRect2D scissor = {};
     scissor.offset = { 0, 0 };
-    scissor.extent = { width, height };
+    scissor.extent = extent;
     return scissor;
+}
+
+VkDescriptorSetLayoutBinding Initializer::descriptorSetLayoutBinding(
+    u32 binding,
+    VkDescriptorType descriptorType,
+    VkShaderStageFlags stageFlags)
+{
+    VkDescriptorSetLayoutBinding layoutBinding = {};
+    layoutBinding.binding = binding;
+    layoutBinding.descriptorType = descriptorType;
+    layoutBinding.descriptorCount = 1;
+    layoutBinding.stageFlags = stageFlags;
+    layoutBinding.pImmutableSamplers = nullptr;
+    return layoutBinding;
 }
 
 VkDescriptorPoolSize Initializer::descriptorPoolSize(VkDescriptorType type, u32 descriptorCount)
@@ -94,21 +195,6 @@ VkDescriptorPoolCreateInfo Initializer::descriptorPoolCreateInfo(u32 maxSets, st
     createInfo.poolSizeCount = poolSizes.size();
     createInfo.pPoolSizes = poolSizes.data();
     return createInfo;
-}
-
-VkDescriptorSetLayoutBinding Initializer::descriptorSetLayoutBinding(
-    u32 binding,
-    VkDescriptorType descriptorType,
-    u32 descriptorCount,
-    VkShaderStageFlags stageFlags)
-{
-    VkDescriptorSetLayoutBinding layoutBinding = {};
-    layoutBinding.binding = binding;
-    layoutBinding.descriptorType = descriptorType;
-    layoutBinding.descriptorCount = descriptorCount;
-    layoutBinding.stageFlags = stageFlags;
-    layoutBinding.pImmutableSamplers = nullptr;
-    return layoutBinding;
 }
 
 VkDescriptorSetLayoutBindingFlagsCreateInfo Initializer::descriptorSetLayoutBindingFlagsCreateInfo(std::vector<VkDescriptorBindingFlags> const& bindingFlags)
@@ -178,35 +264,32 @@ VkDescriptorImageInfo Initializer::descriptorImageInfo(VkSampler sampler, VkImag
 VkWriteDescriptorSet Initializer::writeDescriptorSet(
     VkDescriptorSet dstSet,
     u32 dstBinding,
-    u32 dstArrayElement,
-    u32 descriptorCount,
     VkDescriptorType descriptorType,
     VkDescriptorImageInfo const* imageInfo,
-    VkDescriptorBufferInfo const* bufferInfo,
-    VkBufferView const* texelBufferView)
+    VkDescriptorBufferInfo const* bufferInfo)
 {
     VkWriteDescriptorSet descriptorWrite = {};
     descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     descriptorWrite.pNext = nullptr;
     descriptorWrite.dstSet = dstSet;
     descriptorWrite.dstBinding = dstBinding;
-    descriptorWrite.dstArrayElement = dstArrayElement;
-    descriptorWrite.descriptorCount = descriptorCount;
+    descriptorWrite.dstArrayElement = 0;
+    descriptorWrite.descriptorCount = 1;
     descriptorWrite.descriptorType = descriptorType;
     descriptorWrite.pImageInfo = imageInfo;
     descriptorWrite.pBufferInfo = bufferInfo;
-    descriptorWrite.pTexelBufferView = texelBufferView;
+    descriptorWrite.pTexelBufferView = nullptr;
     return descriptorWrite;
 }
 
-VkPipelineShaderStageCreateInfo Initializer::pipelineShaderStageCreateInfo(VkShaderStageFlagBits stage, VkShaderModule shader)
+VkPipelineShaderStageCreateInfo Initializer::pipelineShaderStageCreateInfo(VkShaderStageFlagBits stage, VkShaderModule module)
 {
     VkPipelineShaderStageCreateInfo createInfo = {};
     createInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     createInfo.pNext = nullptr;
     createInfo.flags = 0;
     createInfo.stage = stage;
-    createInfo.module = shader;
+    createInfo.module = module;
     createInfo.pName = "main";
     createInfo.pSpecializationInfo = nullptr;
     return createInfo;

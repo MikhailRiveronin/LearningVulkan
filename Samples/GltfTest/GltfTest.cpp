@@ -21,7 +21,7 @@ private:
     std::vector<Material> materials;
     std::vector<RenderObject> renderObjects;
     std::vector<FrameResource> frameResources;
-    std::vector<ResourceDescriptor> resourceDescriptors;
+    std::vector<DescriptorSets> resourceDescriptors;
     std::vector<VkPushConstantRange> pushConstantRanges;
     std::vector<VkPipelineLayout> pipelineLayouts;
     std::vector<VkPipeline> pipelines;
@@ -148,9 +148,9 @@ void GltfTest::createResourceDescriptors()
 
         std::vector<VkDescriptorSetLayout> setLayouts(framesInFlight, resourceDescriptors[0].setLayout);
         auto descriptorSetAllocateInfo = Initializer::descriptorSetAllocateInfo(resourceDescriptors[0].pool, framesInFlight, setLayouts);
-        resourceDescriptors[0].sets.resize(framesInFlight);
+        resourceDescriptors[0].handles.resize(framesInFlight);
         THROW_IF_FAILED(
-            vkAllocateDescriptorSets(globals.device.handle, &descriptorSetAllocateInfo, resourceDescriptors[0].sets.data()),
+            vkAllocateDescriptorSets(globals.device.handle, &descriptorSetAllocateInfo, resourceDescriptors[0].handles.data()),
             __FILE__, __LINE__,
             "Failed to allocate descriptor sets");
 
@@ -159,7 +159,7 @@ void GltfTest::createResourceDescriptors()
             uniformBufferDescriptors[0] = Initializer::descriptorBufferInfo(frameResources[i].passBuffer.handle, 0);
             std::vector<VkWriteDescriptorSet> descriptorWrites(1);
             descriptorWrites[0] = Initializer::writeDescriptorSet(
-                resourceDescriptors[0].sets[i],
+                resourceDescriptors[0].handles[i],
                 0, 0, uniformBufferDescriptors.size(),
                 VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
                 nullptr, uniformBufferDescriptors.data(), nullptr);
@@ -313,14 +313,14 @@ void GltfTest::recordCommandBuffer(VkCommandBuffer commandBuffer, u32 imageIndex
         commandBuffer,
         VK_PIPELINE_BIND_POINT_GRAPHICS,
         pipelineLayouts[0],
-        0, 1, &resourceDescriptors[0].sets[frameIndex],
+        0, 1, &resourceDescriptors[0].handles[frameIndex],
         0, nullptr);
 
     vkCmdBindDescriptorSets(
         commandBuffer,
         VK_PIPELINE_BIND_POINT_GRAPHICS,
         pipelineLayouts[0],
-        1, 1, &gltfModel.resourceDescriptors[0].sets[frameIndex],
+        1, 1, &gltfModel.resourceDescriptors[0].handles[frameIndex],
         0, nullptr);
 
     vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelines[0]);
@@ -332,7 +332,7 @@ void GltfTest::recordCommandBuffer(VkCommandBuffer commandBuffer, u32 imageIndex
             commandBuffer,
             VK_PIPELINE_BIND_POINT_GRAPHICS,
             pipelineLayouts[0],
-            2, 1, &gltfModel.resourceDescriptors[1].sets[frameIndex],
+            2, 1, &gltfModel.resourceDescriptors[1].handles[frameIndex],
             1, &dynamicOffset);
 
         auto& mesh = gltfModel.model.meshes[gltfModel.model.nodes[i].mesh];

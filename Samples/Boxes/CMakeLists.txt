@@ -20,7 +20,7 @@ target_include_directories(${sample_name} PRIVATE
     ../../build/_deps/stb-src
     ../../build/_deps/tinygltf-src
     ../../build/_deps/imgui-src)
-target_link_libraries(${sample_name} PRIVATE Vulkan::Vulkan glm-header-only)
+target_link_libraries(${sample_name} PRIVATE Vulkan::Vulkan Vulkan::shaderc_combined glm-header-only)
 target_compile_definitions(${sample_name} PRIVATE VK_USE_PLATFORM_WIN32_KHR)
 
 set(shader_spv_dir ${CMAKE_BINARY_DIR}/Shaders)
@@ -32,7 +32,8 @@ add_custom_command(TARGET ${sample_name} POST_BUILD
     COMMAND $ENV{VULKAN_SDK}/Bin/glslc.exe Shaders/Cube.vert -o ${shader_spv_dir}/${sample_name}/CubeVertex.spv
     COMMAND $ENV{VULKAN_SDK}/Bin/glslc.exe Shaders/Cube.frag -o ${shader_spv_dir}/${sample_name}/CubeFragment.spv
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-    BYPRODUCTS ${shader_spv_dir}/${sample_name}/CubeVertex.spv ${shader_spv_dir}/${sample_name}/CubeFragment.spv)
+    BYPRODUCTS ${shader_spv_dir}/${sample_name}/CubeVertex.spv ${shader_spv_dir}/${sample_name}/CubeFragment.spv
+)
 
 add_custom_command(TARGET ${sample_name} POST_BUILD
     COMMAND $ENV{VULKAN_SDK}/Bin/glslc.exe Shaders/LightCube.vert -o ${shader_spv_dir}/${sample_name}/LightCubeVertex.spv

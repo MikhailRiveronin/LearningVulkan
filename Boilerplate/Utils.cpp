@@ -1,6 +1,7 @@
 #include "Utils.h"
 #include "Initializer.h"
 
+#include <shaderc/shaderc.hpp>
 #include <fstream>
 
 std::vector<char> loadShaderCode(std::string const& filename)
@@ -418,4 +419,45 @@ u32 calculateAlignedSize(u32 size, u32 alignment)
         throw std::runtime_error("Alignment cannot be zero");
     }
     return (size + alignment - 1) / alignment * alignment;
+}
+
+void createShaderStage(Globals const& globals, ShaderStage shaderStage)
+{
+    shaderc::Compiler compiler;
+    shaderc::CompileOptions options;
+
+    std::string shaderFolder = "D:/Projects/LearningVulkan/build/Shaders/";
+    std::string path = shaderFolder + shaderStage.filename;
+    std::ifstream file(path, std::ios::ate);
+    if (!file.is_open()) {
+        throw std::runtime_error("Failed to open file");
+    }
+
+    auto fileSize = (u32)file.tellg();
+    std::vector<char> source(fileSize);
+    file.seekg(0);
+    file.read(source.data(), fileSize);
+    file.close();
+
+    shaderc_shader_kind kind;
+    switch (shaderStage.stage) {
+    case VK_SHADER_STAGE_VERTEX_BIT:
+        kind = shaderc_glsl_vertex_shader;
+        break;
+
+    case VK_SHADER_STAGE_FRAGMENT_BIT:
+        kind = shaderc_glsl_vertex_shader;
+        break;
+
+    default:
+        kind = shaderc_glsl_vertex_shader;
+    }
+
+    auto code = compiler.CompileGlslToSpv(source.data(), kind, shaderStage.filename.c_str());
+    auto shaderModuleCreateInfo = Initializer::shaderModuleCreateInfo({ code.begin(), code.end() });
+    THROW_IF_FAILED(
+        vkCreateShaderModule(globals.device.handle, &shaderModuleCreateInfo, globals.allocator, &shaderStage.module),
+        __FILE__, __LINE__,
+        "Failed to create shader module");
+    shaderStage.createInfo = Initializer::pipelineShaderStageCreateInfo(VK_SHADER_STAGE_VERTEX_BIT, shaderStage.module);
 }

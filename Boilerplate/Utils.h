@@ -49,3 +49,5 @@ void createPipeline(
     std::vector<VkPushConstantRange> pushConstantRanges,
     std::vector<PipelineCreateInfo> const& pipelineCreateInfos);
 void destroyPipeline(Globals const& globals, Pipeline& pipeline);
+
+void createShaderStage(Globals const& globals, ShaderStage shaderStage);

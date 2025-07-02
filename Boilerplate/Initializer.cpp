@@ -113,14 +113,14 @@ VkFramebufferCreateInfo Initializer::framebufferCreateInfo(
     return createInfo;
 }
 
-VkShaderModuleCreateInfo Initializer::shaderModuleCreateInfo(std::vector<char> const& code)
+VkShaderModuleCreateInfo Initializer::shaderModuleCreateInfo(std::vector<u32> const& code)
 {
     VkShaderModuleCreateInfo createInfo = {};
     createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
     createInfo.pNext = nullptr;
     createInfo.flags = 0;
-    createInfo.codeSize = code.size();
-    createInfo.pCode = reinterpret_cast<u32 const*>(code.data());
+    createInfo.codeSize = code.size() * sizeof(code[0]);
+    createInfo.pCode = code.data();
     return createInfo;
 }
 

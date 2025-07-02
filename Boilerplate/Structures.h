@@ -53,7 +53,12 @@ struct Sampler {
     VkSamplerAddressMode addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
 };
 
-
+struct ShaderStage {
+    VkShaderStageFlagBits stage;
+    std::string filename;
+    VkShaderModule module;
+    VkPipelineShaderStageCreateInfo createInfo;
+};
 
 struct Texture {
     Image image;

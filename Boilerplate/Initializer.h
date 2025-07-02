@@ -47,7 +47,7 @@ public:
         u32 layers = 1);
 
 
-    static VkShaderModuleCreateInfo shaderModuleCreateInfo(std::vector<char> const& code);
+    static VkShaderModuleCreateInfo shaderModuleCreateInfo(std::vector<u32> const& code);
 
     static VkVertexInputBindingDescription vertexInputBindingDescription(u32 binding, u32 stride, VkVertexInputRate inputRate = VK_VERTEX_INPUT_RATE_VERTEX);
     static VkVertexInputAttributeDescription vertexInputAttributeDescription(u32 location, u32 binding, VkFormat format, u32 offset);

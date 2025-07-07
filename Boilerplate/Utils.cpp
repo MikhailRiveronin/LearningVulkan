@@ -1,7 +1,7 @@
 #include "Utils.h"
 #include "Initializer.h"
 
-#include <shaderc/shaderc.hpp>
+#include <stb_image.h>
 #include <fstream>
 
 std::vector<char> loadShaderCode(std::string const& filename)
@@ -21,7 +21,7 @@ std::vector<char> loadShaderCode(std::string const& filename)
     return buffer;
 }
 
-void createBuffer(Globals const& globals, Buffer& buffer)
+void createBuffer(Context const& context, Buffer& buffer)
 {
     VkBufferCreateInfo createInfo = {};
     createInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -32,36 +32,106 @@ void createBuffer(Globals const& globals, Buffer& buffer)
     createInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
     createInfo.queueFamilyIndexCount = 0;
     createInfo.pQueueFamilyIndices = nullptr;
-    THROW_IF_FAILED(
-        vkCreateBuffer(globals.device.handle, &createInfo, globals.allocator, &buffer.handle),
-        __FILE__, __LINE__,
-        "Failed to create buffer");
+    THROW_IF_FAILED(vkCreateBuffer(context.device.handle, &createInfo, context.allocator, &buffer.handle));
 
     VkMemoryRequirements memoryRequirements;
-    vkGetBufferMemoryRequirements(globals.device.handle, buffer.handle, &memoryRequirements);
+    vkGetBufferMemoryRequirements(context.device.handle, buffer.handle, &memoryRequirements);
     VkMemoryAllocateInfo allocateInfo = {};
     allocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
     allocateInfo.pNext = nullptr;
     allocateInfo.allocationSize = memoryRequirements.size;
-    allocateInfo.memoryTypeIndex = findMemoryType(globals, memoryRequirements, buffer.memoryProperties);
-    THROW_IF_FAILED(
-        vkAllocateMemory(globals.device.handle, &allocateInfo, globals.allocator, &buffer.memory),
-        __FILE__, __LINE__,
-        "Failed to allocate memory");
-
-    THROW_IF_FAILED(
-        vkBindBufferMemory(globals.device.handle, buffer.handle, buffer.memory, 0),
-        __FILE__, __LINE__,
-        "Failed to bind buffer memory");
+    allocateInfo.memoryTypeIndex = findMemoryTypeIndex(context, memoryRequirements, buffer.memoryProperties);
+    THROW_IF_FAILED(vkAllocateMemory(context.device.handle, &allocateInfo, context.allocator, &buffer.memory));
+    THROW_IF_FAILED(vkBindBufferMemory(context.device.handle, buffer.handle, buffer.memory, 0));
 }
 
-void destroyBuffer(Globals const& globals, Buffer& buffer)
+void createImage(Context const& context, Image& image)
 {
-    vkDestroyBuffer(globals.device.handle, buffer.handle, globals.allocator);
-    vkFreeMemory(globals.device.handle, buffer.memory, globals.allocator);
+    {
+        VkImageCreateInfo createInfo = {};
+        createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+        createInfo.pNext = nullptr;
+        createInfo.flags = image.flags;
+        createInfo.imageType = image.imageType;
+        createInfo.format = image.format;
+        createInfo.extent = { image.width, image.height, 1 };
+        createInfo.mipLevels = image.mipLevels;
+        createInfo.arrayLayers = image.arrayLayers;
+        createInfo.samples = image.samples;
+        createInfo.tiling = image.tiling;
+        createInfo.usage = image.usage;
+        createInfo.sharingMode = image.sharingMode;
+        createInfo.queueFamilyIndexCount = image.queueFamilyIndexCount;
+        createInfo.pQueueFamilyIndices = image.queueFamilyIndices;
+        createInfo.initialLayout = image.initialLayout;
+        THROW_IF_FAILED(vkCreateImage(context.device.handle, &createInfo, context.allocator, &image.handle));
+    
+        VkMemoryRequirements memoryRequirements;
+        vkGetImageMemoryRequirements(context.device.handle, image.handle, &memoryRequirements);
+        VkMemoryAllocateInfo allocateInfo = {};
+        allocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+        allocateInfo.pNext = nullptr;
+        allocateInfo.allocationSize = memoryRequirements.size;
+        allocateInfo.memoryTypeIndex = findMemoryTypeIndex(context, memoryRequirements, image.memoryProperties);
+        THROW_IF_FAILED(vkAllocateMemory(context.device.handle, &allocateInfo, context.allocator, &image.memory));
+        THROW_IF_FAILED(vkBindImageMemory(context.device.handle, image.handle, image.memory, 0));
+    }
+    {
+        VkImageViewCreateInfo createInfo = {};
+        createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+        createInfo.pNext = nullptr;
+        createInfo.flags = 0;
+        createInfo.image = image.handle;
+        createInfo.viewType = image.view.viewType;
+        createInfo.format = image.format;
+        createInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+        createInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+        createInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+        createInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+        createInfo.subresourceRange.aspectMask = image.view.aspectMask;
+        createInfo.subresourceRange.baseMipLevel = 0;
+        createInfo.subresourceRange.levelCount = image.mipLevels;
+        createInfo.subresourceRange.baseArrayLayer = 0;
+        createInfo.subresourceRange.layerCount = image.arrayLayers;
+        THROW_IF_FAILED(vkCreateImageView(context.device.handle, &createInfo, context.allocator, &image.view.handle));
+    }
+    {
+        VkSamplerCreateInfo createInfo = {};
+        createInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+        createInfo.pNext = nullptr;
+        createInfo.flags = 0;
+        createInfo.magFilter = image.sampler.magFilter;
+        createInfo.minFilter = image.sampler.minFilter;
+        createInfo.mipmapMode = image.sampler.mipmapMode;
+        createInfo.addressModeU = image.sampler.addressModeU;
+        createInfo.addressModeV = image.sampler.addressModeV;
+        createInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        createInfo.mipLodBias = 0.f;
+        createInfo.anisotropyEnable = VK_TRUE;
+        createInfo.maxAnisotropy = 1.f;
+        createInfo.compareEnable = VK_FALSE;
+        createInfo.compareOp = VK_COMPARE_OP_NEVER;
+        createInfo.minLod = 0.f;
+        createInfo.maxLod = 0.f;
+        createInfo.borderColor = VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK;
+        createInfo.unnormalizedCoordinates = VK_FALSE;
+        THROW_IF_FAILED(vkCreateSampler(context.device.handle, &createInfo, context.allocator, &image.sampler.handle));
+    }
 }
 
-void copyBuffer(Globals const& globals, Buffer& srcBuffer, Buffer& dstBuffer)
+void destroyBuffer(Context const& context, Buffer& buffer)
+{
+    vkDestroyBuffer(context.device.handle, buffer.handle, context.allocator);
+    vkFreeMemory(context.device.handle, buffer.memory, context.allocator);
+}
+
+void destroyImage(Context const& context, Image const& image)
+{
+    vkDestroyImage(context.device.handle, image.handle, context.allocator);
+    vkFreeMemory(context.device.handle, image.memory, context.allocator);
+}
+
+void copyBuffer(Context const& globals, Buffer& srcBuffer, Buffer& dstBuffer)
 {
     auto commandBuffer = beginCommandBufferOneTimeSubmit(globals);
 
@@ -75,95 +145,55 @@ void copyBuffer(Globals const& globals, Buffer& srcBuffer, Buffer& dstBuffer)
     endCommandBufferOneTimeSubmit(globals, commandBuffer);
 }
 
-void copyBufferToImage(Globals const& globals, Buffer& buffer, Image& image)
+void copyBufferToImage(Context const& context, Buffer& buffer, Image& image)
 {
-    auto commandBuffer = beginCommandBufferOneTimeSubmit(globals);
-
     VkBufferImageCopy copy = {};
     copy.bufferOffset = 0;
     copy.bufferRowLength = 0;
     copy.bufferImageHeight = 0;
-    copy.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    copy.imageSubresource.aspectMask = image.view.aspectMask;
     copy.imageSubresource.mipLevel = 0;
     copy.imageSubresource.baseArrayLayer = 0;
-    copy.imageSubresource.layerCount = 1;
+    copy.imageSubresource.layerCount = image.arrayLayers;
     copy.imageOffset = { 0, 0, 0 };
     copy.imageExtent = { image.width, image.height, 1};
 
+    auto commandBuffer = beginCommandBufferOneTimeSubmit(context);
     vkCmdCopyBufferToImage(commandBuffer, buffer.handle, image.handle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy);
-
-    endCommandBufferOneTimeSubmit(globals, commandBuffer);
+    endCommandBufferOneTimeSubmit(context, commandBuffer);
 }
 
-VkDeviceSize calculateUniformBufferAlignment(Globals const& globals, VkDeviceSize size)
+VkDeviceSize calculateUniformBufferAlignment(Context const& globals, VkDeviceSize size)
 {
     VkDeviceSize minAlignment = globals.device.support.properties.limits.minUniformBufferOffsetAlignment;
     return (size + minAlignment - 1) & ~(minAlignment - 1);
 }
 
-void createImage(Globals const& globals, Image& image)
-{
-    VkImageCreateInfo createInfo = {};
-    createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-    createInfo.pNext = nullptr;
-    createInfo.flags = 0;
-    createInfo.imageType = VK_IMAGE_TYPE_2D;
-    createInfo.format = image.format;
-    createInfo.extent = { image.width, image.height, 1 };
-    createInfo.mipLevels = image.mipLevels;
-    createInfo.arrayLayers = image.arrayLayers;
-    createInfo.samples = image.samples;
-    createInfo.tiling = image.tiling;
-    createInfo.usage = image.usage;
-    createInfo.sharingMode = image.sharingMode;
-    createInfo.queueFamilyIndexCount = image.queueCount;
-    createInfo.pQueueFamilyIndices = image.queueIndices;
-    createInfo.initialLayout = image.layout;
 
-    THROW_IF_FAILED(vkCreateImage(globals.device.handle, &createInfo, globals.allocator, &image.handle), __FILE__, __LINE__, "Failed to create image");
 
-    VkMemoryRequirements memoryRequirements;
-    vkGetImageMemoryRequirements(globals.device.handle, image.handle, &memoryRequirements);
-
-    VkMemoryAllocateInfo allocateInfo = {};
-    allocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    allocateInfo.pNext = nullptr;
-    allocateInfo.allocationSize = memoryRequirements.size;
-    allocateInfo.memoryTypeIndex = findMemoryType(globals, memoryRequirements, image.memoryProperties);
-
-    THROW_IF_FAILED(vkAllocateMemory(globals.device.handle, &allocateInfo, globals.allocator, &image.memory), __FILE__, __LINE__, "Failed to allocate memory");
-    THROW_IF_FAILED(vkBindImageMemory(globals.device.handle, image.handle, image.memory, 0), __FILE__, __LINE__, "Failed to bind image memory");
-}
-
-void destroyImage(Globals const& globals, Image const& image)
-{
-    vkDestroyImage(globals.device.handle, image.handle, globals.allocator);
-    vkFreeMemory(globals.device.handle, image.memory, globals.allocator);
-}
-
-void createImageView(Globals const& globals, Image& image)
+void createImageView(Context const& globals, Image& image)
 {
     VkImageViewCreateInfo createInfo = {};
     createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
     createInfo.pNext = nullptr;
     createInfo.flags = 0;
     createInfo.image = image.handle;
-    createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    createInfo.viewType = image.view.viewType;
     createInfo.format = image.format;
-    createInfo.components = { VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY };
-    createInfo.subresourceRange.aspectMask = image.aspect;
+    createInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+    createInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+    createInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+    createInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+    createInfo.subresourceRange.aspectMask = image.view.aspectMask;
     createInfo.subresourceRange.baseMipLevel = 0;
     createInfo.subresourceRange.levelCount = image.mipLevels;
     createInfo.subresourceRange.baseArrayLayer = 0;
     createInfo.subresourceRange.layerCount = image.arrayLayers;
-
-    THROW_IF_FAILED(vkCreateImageView(globals.device.handle, &createInfo, globals.allocator, &image.view), __FILE__, __LINE__, "Failed to create image view");
+    THROW_IF_FAILED(vkCreateImageView(globals.device.handle, &createInfo, globals.allocator, &image.view.handle));
 }
 
-void transitionImageLayout(Globals const& globals, Image& image, VkImageLayout oldLayout, VkImageLayout newLayout)
+void transitionImageLayout(Context const& globals, Image& image, VkImageLayout oldLayout, VkImageLayout newLayout)
 {
-    auto commandBuffer = beginCommandBufferOneTimeSubmit(globals);
-
     VkAccessFlags srcAccessMask;
     VkAccessFlags dstAccessMask;
     VkPipelineStageFlags srcStageMask;
@@ -192,44 +222,18 @@ void transitionImageLayout(Globals const& globals, Image& image, VkImageLayout o
     barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     barrier.image = image.handle;
-    barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    barrier.subresourceRange.aspectMask = image.view.aspectMask;
     barrier.subresourceRange.baseMipLevel = 0;
-    barrier.subresourceRange.levelCount = 1;
+    barrier.subresourceRange.levelCount = image.mipLevels;
     barrier.subresourceRange.baseArrayLayer = 0;
-    barrier.subresourceRange.layerCount = 1;
+    barrier.subresourceRange.layerCount = image.arrayLayers;
 
+    auto commandBuffer = beginCommandBufferOneTimeSubmit(globals);
     vkCmdPipelineBarrier(commandBuffer, srcStageMask, dstStageMask, 0, 0, nullptr, 0, nullptr, 1, &barrier);
-
-
     endCommandBufferOneTimeSubmit(globals, commandBuffer);
 }
 
-void createSampler(Globals const& globals, Sampler& sampler)
-{
-    VkSamplerCreateInfo createInfo = {};
-    createInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-    createInfo.pNext = nullptr;
-    createInfo.flags = 0;
-    createInfo.magFilter = sampler.magFilter;
-    createInfo.minFilter = sampler.minFilter;
-    createInfo.mipmapMode = sampler.mipmapMode;
-    createInfo.addressModeU = sampler.addressModeU;
-    createInfo.addressModeV = sampler.addressModeV;
-    createInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-    createInfo.mipLodBias = 0.f;
-    createInfo.anisotropyEnable = VK_TRUE;
-    createInfo.maxAnisotropy = globals.device.support.properties.limits.maxSamplerAnisotropy;
-    createInfo.compareEnable = VK_FALSE;
-    createInfo.compareOp = VK_COMPARE_OP_NEVER;
-    createInfo.minLod = 0.f;
-    createInfo.maxLod = 0.f;
-    createInfo.borderColor = VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK;
-    createInfo.unnormalizedCoordinates = VK_FALSE;
-
-    THROW_IF_FAILED(vkCreateSampler(globals.device.handle, &createInfo, globals.allocator, &sampler.handle), __FILE__, __LINE__, "Failed to create sampler");
-}
-
-u32 findMemoryType(Globals const& globals, VkMemoryRequirements const& requirements, VkMemoryPropertyFlags properties)
+u32 findMemoryTypeIndex(Context const& globals, VkMemoryRequirements const& requirements, VkMemoryPropertyFlags properties)
 {
     for (uint32_t i = 0; i < globals.device.support.memoryProperties.memoryTypeCount; ++i) {
         if ((requirements.memoryTypeBits & (1 << i)) && ((globals.device.support.memoryProperties.memoryTypes[i].propertyFlags & properties) == properties)) {
@@ -240,7 +244,7 @@ u32 findMemoryType(Globals const& globals, VkMemoryRequirements const& requireme
     return -1;
 }
 
-VkCommandBuffer beginCommandBufferOneTimeSubmit(Globals const& globals)
+VkCommandBuffer beginCommandBufferOneTimeSubmit(Context const& globals)
 {
     VkCommandBuffer commandBuffer;
 
@@ -263,7 +267,7 @@ VkCommandBuffer beginCommandBufferOneTimeSubmit(Globals const& globals)
     return commandBuffer;
 }
 
-void endCommandBufferOneTimeSubmit(Globals const& globals, VkCommandBuffer commandBuffer)
+void endCommandBufferOneTimeSubmit(Context const& globals, VkCommandBuffer commandBuffer)
 {
     vkEndCommandBuffer(commandBuffer);
 
@@ -289,7 +293,7 @@ void endCommandBufferOneTimeSubmit(Globals const& globals, VkCommandBuffer comma
     vkFreeCommandBuffers(globals.device.handle, globals.graphicsCommandBuffer.pool, 1, &commandBuffer);
 }
 
-void createDescriptorSets(Globals const& globals, std::vector<DescriptorSetBinding> const& descriptorSetBindings, DescriptorSets& descriptorSets)
+void createDescriptorSets(Context const& globals, std::vector<DescriptorSetBinding> const& descriptorSetBindings, DescriptorSets& descriptorSets)
 {
     std::vector<VkDescriptorPoolSize> poolSizes(descriptorSetBindings.size());
     std::vector<VkDescriptorSetLayoutBinding> bindings(descriptorSetBindings.size());
@@ -327,13 +331,13 @@ void createDescriptorSets(Globals const& globals, std::vector<DescriptorSetBindi
     }
 }
 
-void destroyDescriptorSets(Globals const& globals, DescriptorSets& descriptorSets)
+void destroyDescriptorSets(Context const& globals, DescriptorSets& descriptorSets)
 {
     vkDestroyDescriptorSetLayout(globals.device.handle, descriptorSets.setLayout, globals.allocator);
     vkDestroyDescriptorPool(globals.device.handle, descriptorSets.pool, globals.allocator);
 }
 
-void createPipeline(Globals const& globals,  Pipeline& pipeline)
+void createPipeline(Context const& globals,  Pipeline& pipeline)
 {
     std::vector<VkPipelineShaderStageCreateInfo> stages(2);
     VkShaderModule shaderModule[2];
@@ -407,7 +411,7 @@ void createPipeline(Globals const& globals,  Pipeline& pipeline)
     vkDestroyShaderModule(globals.device.handle, shaderModule[1], globals.allocator);
 }
 
-void destroyPipeline(Globals const& globals, Pipeline& pipeline)
+void destroyPipeline(Context const& globals, Pipeline& pipeline)
 {
     vkDestroyPipelineLayout(globals.device.handle, pipeline.layout, globals.allocator);
     vkDestroyPipeline(globals.device.handle, pipeline.handle, globals.allocator);
@@ -421,7 +425,7 @@ u32 calculateAlignedSize(u32 size, u32 alignment)
     return (size + alignment - 1) / alignment * alignment;
 }
 
-void createShaderStage(Globals const& globals, ShaderStage shaderStage)
+void createShaderStage(Context const& globals, ShaderStage shaderStage)
 {
     shaderc::Compiler compiler;
     shaderc::CompileOptions options;
@@ -460,4 +464,75 @@ void createShaderStage(Globals const& globals, ShaderStage shaderStage)
         __FILE__, __LINE__,
         "Failed to create shader module");
     shaderStage.createInfo = Initializer::pipelineShaderStageCreateInfo(VK_SHADER_STAGE_VERTEX_BIT, shaderStage.module);
+}
+
+void createCubeTexture(
+    Context const& context,
+    char const* front, char const* back,
+    char const* left, char const* right,
+    char const* up, char const* down,
+    Image& image)
+{
+    i32 width;
+    i32 height;
+    i32 channels;
+    uc* pixels[6];
+    pixels[0] = stbi_load(front, &width, &height, &channels, STBI_rgb_alpha);
+    if (!pixels[0]) {
+        throw std::runtime_error("Failed to load texture image");
+    }
+
+    pixels[1] = stbi_load(back, &width, &height, &channels, STBI_rgb_alpha);
+    if (!pixels[1]) {
+        throw std::runtime_error("Failed to load texture image");
+    }
+
+    pixels[2] = stbi_load(left, &width, &height, &channels, STBI_rgb_alpha);
+    if (!pixels[2]) {
+        throw std::runtime_error("Failed to load texture image");
+    }
+
+    pixels[3] = stbi_load(right, &width, &height, &channels, STBI_rgb_alpha);
+    if (!pixels[3]) {
+        throw std::runtime_error("Failed to load texture image");
+    }
+
+    pixels[4] = stbi_load(up, &width, &height, &channels, STBI_rgb_alpha);
+    if (!pixels[4]) {
+        throw std::runtime_error("Failed to load texture image");
+    }
+
+    pixels[5] = stbi_load(down, &width, &height, &channels, STBI_rgb_alpha);
+    if (!pixels[5]) {
+        throw std::runtime_error("Failed to load texture image");
+    }
+
+    u32 layerSize = width * height * STBI_rgb_alpha;
+    u32 imageSize = layerSize * 6;
+
+    Buffer stagingBuffer;
+    stagingBuffer.size = imageSize;
+    stagingBuffer.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+    stagingBuffer.memoryProperties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+    createBuffer(context, stagingBuffer);
+    vkMapMemory(context.device.handle, stagingBuffer.memory, 0, stagingBuffer.size, 0, &stagingBuffer.mapped);
+    for (u32 i = 0; i < 6; ++i) {
+        memcpy(static_cast<u8*>(stagingBuffer.mapped) + layerSize * i, pixels[i], layerSize);
+    }
+
+    vkUnmapMemory(context.device.handle, stagingBuffer.memory);
+    stbi_image_free(pixels);
+
+    image.flags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
+    image.width = width;
+    image.height = height;
+    image.arrayLayers = 6;
+    image.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+    image.memoryProperties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+    image.view.viewType = VK_IMAGE_VIEW_TYPE_CUBE;
+    createImage(context, image);
+    transitionImageLayout(context, image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+    copyBufferToImage(context, stagingBuffer, image);
+    destroyBuffer(context, stagingBuffer);
+    transitionImageLayout(context, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 }

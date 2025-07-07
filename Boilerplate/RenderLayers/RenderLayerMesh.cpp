@@ -3,7 +3,7 @@
 #include "Utils.h"
 
 RenderLayerMesh::RenderLayerMesh(
-    Globals const& globals,
+    Context const& globals,
     std::vector<DescriptorSetBinding> const& descriptorSetCreateInfos,
     std::vector<PipelineCreateInfo> const& pipelineCreateInfos)
 {
@@ -13,7 +13,7 @@ RenderLayerMesh::RenderLayerMesh(
     createPipelines(globals, pipelineCreateInfos);
 }
 
-void RenderLayerMesh::recordCommandBuffer(Globals const& globals, VkCommandBuffer commandBuffer, u32 swapchainImage)
+void RenderLayerMesh::recordCommandBuffer(Context const& globals, VkCommandBuffer commandBuffer, u32 swapchainImage)
 {
     VkRect2D renderArea = { { 0, 0 }, globals.swapchain.extent };
     auto renderPassBeginInfo = Initializer::renderPassBeginInfo(renderPass, framebuffers[swapchainImage], renderArea);
@@ -42,7 +42,7 @@ void RenderLayerMesh::recordCommandBuffer(Globals const& globals, VkCommandBuffe
 
 }
 
-void RenderLayerMesh::createRenderPass(Globals const& globals)
+void RenderLayerMesh::createRenderPass(Context const& globals)
 {
     std::vector<VkAttachmentDescription> attachmentDescriptions(2);
     attachmentDescriptions[0] = Initializer::attachmentDescription(
@@ -83,7 +83,7 @@ void RenderLayerMesh::createRenderPass(Globals const& globals)
         "Failed to create render pass");
 }
 
-void RenderLayerMesh::createFramebuffers(Globals const& globals)
+void RenderLayerMesh::createFramebuffers(Context const& globals)
 {
     framebuffers.resize(globals.swapchain.imageViews.size());
     for (u32 i = 0; i < framebuffers.size(); ++i) {
@@ -98,7 +98,7 @@ void RenderLayerMesh::createFramebuffers(Globals const& globals)
     }
 }
 
-void RenderLayerMesh::createPipelines(Globals const& globals, std::vector<PipelineCreateInfo> const& pipelineCreateInfos)
+void RenderLayerMesh::createPipelines(Context const& globals, std::vector<PipelineCreateInfo> const& pipelineCreateInfos)
 {
     pipelines.resize(pipelineCreateInfos.size());
     std::vector<VkGraphicsPipelineCreateInfo> createInfos(pipelineCreateInfos.size());

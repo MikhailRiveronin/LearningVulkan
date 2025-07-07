@@ -29,7 +29,7 @@ public:
     void onNotify(EventType type, EventContext context) override;
 
 protected:
-    Globals globals;
+    Context globals;
     Image depthBuffer;
 
 private:

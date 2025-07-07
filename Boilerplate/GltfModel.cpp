@@ -67,7 +67,7 @@ void GltfModel::calculateGlobalTransform(u32 nodeIndex, glm::mat4 const& parentG
     }
 }
 
-void GltfModel::loadMeshes(Globals const& globals)
+void GltfModel::loadMeshes(Context const& globals)
 {
     meshes.resize(model.meshes.size());
     
@@ -505,7 +505,7 @@ void GltfModel::loadMeshes(Globals const& globals)
     }
 }
 
-void GltfModel::loadImages(Globals const& globals)
+void GltfModel::loadImages(Context const& globals)
 {
     images.resize(model.images.size());
     for (u32 i = 0; i < model.images.size(); ++i) {
@@ -531,7 +531,7 @@ void GltfModel::loadImages(Globals const& globals)
     }
 }
 
-void GltfModel::loadSamplers(Globals const& globals)
+void GltfModel::loadSamplers(Context const& globals)
 {
     samplers.resize(model.images.size());
     for (u32 i = 0; i < model.images.size(); ++i) {
@@ -550,7 +550,7 @@ void GltfModel::loadMaterials()
 
 }
 
-void GltfModel::createFrameResources(Globals const& globals)
+void GltfModel::createFrameResources(Context const& globals)
 {
     frameResources.resize(framesInFlight);
     for (u32 i = 0; i < framesInFlight; ++i) {
@@ -601,7 +601,7 @@ void GltfModel::createFrameResources(Globals const& globals)
     }
 }
 
-void GltfModel::createDescriptors(Globals const& globals)
+void GltfModel::createDescriptors(Context const& globals)
 {
     resourceDescriptors.resize(2);
     {

@@ -6,11 +6,11 @@
 
 class Device {
 public:
-    void create(Globals& globals);
-    void destroy(Globals& globals);
+    void create(Context& globals);
+    void destroy(Context& globals);
 
     VkPhysicalDevice physicalDevice;
 private:
 
-    void findPhysicalDevice(Globals& globals);
+    void findPhysicalDevice(Context& globals);
 };

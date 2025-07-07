@@ -27,7 +27,7 @@ static VkSurfaceFormatKHR selectSwapchainFormat(std::vector<VkSurfaceFormatKHR> 
 static VkPresentModeKHR selectSwapchainPresentMode(std::vector<VkPresentModeKHR> const& presentModes);
 static VkFormat selectDepthStencilBufferFormat(VkPhysicalDevice physicalDevice);
 
-void Device::create(Globals& globals)
+void Device::create(Context& globals)
 {
     findPhysicalDevice(globals);
 
@@ -84,13 +84,13 @@ void Device::create(Globals& globals)
     vkGetDeviceQueue(globals.device.handle, globals.device.queues.present.index, 0, &globals.device.queues.present.handle);
 }
 
-void Device::destroy(Globals& globals)
+void Device::destroy(Context& globals)
 {
     vkDestroyDevice(globals.device.handle, globals.allocator);
     LOG_DEBUG("Device destroyed");
 }
 
-void Device::findPhysicalDevice(Globals& globals)
+void Device::findPhysicalDevice(Context& globals)
 {
     u32 deviceCount = 0;
     THROW_IF_FAILED(

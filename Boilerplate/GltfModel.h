@@ -15,13 +15,13 @@ public:
 
     void loadNodes();
     void calculateGlobalTransform(u32 nodeIndex, glm::mat4 const& parentGlobalTransform);
-    void loadMeshes(Globals const& globals);
-    void loadImages(Globals const& globals);
-    void loadSamplers(Globals const& globals);
+    void loadMeshes(Context const& globals);
+    void loadImages(Context const& globals);
+    void loadSamplers(Context const& globals);
     void loadMaterials();
 
-    void createFrameResources(Globals const& globals);
-    void createDescriptors(Globals const& globals);
+    void createFrameResources(Context const& globals);
+    void createDescriptors(Context const& globals);
 
     struct Node {
         glm::mat4 localTransform;

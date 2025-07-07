@@ -5,6 +5,6 @@
 
 class Swapchain {
 public:
-    void create(Globals& globals);
-    void destroy(Globals const& globals);
+    void create(Context& globals);
+    void destroy(Context const& globals);
 };

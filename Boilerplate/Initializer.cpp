@@ -2,15 +2,13 @@
 #include "Utils.h"
 
 VkAttachmentDescription Initializer::attachmentDescription(
-    VkAttachmentDescriptionFlags flags,
     VkFormat format,
+    VkAttachmentLoadOp loadOp, VkAttachmentStoreOp storeOp,
+    VkImageLayout initialLayout, VkImageLayout finalLayout,
+    VkAttachmentDescriptionFlags flags,
     VkSampleCountFlagBits samples,
-    VkAttachmentLoadOp loadOp,
-    VkAttachmentStoreOp storeOp,
     VkAttachmentLoadOp stencilLoadOp,
-    VkAttachmentStoreOp stencilStoreOp,
-    VkImageLayout initialLayout,
-    VkImageLayout finalLayout)
+    VkAttachmentStoreOp stencilStoreOp)
 {
     VkAttachmentDescription description = {};
     description.flags = flags;
@@ -34,12 +32,12 @@ VkAttachmentReference Initializer::attachmentReference(u32 attachment, VkImageLa
 }
 
 VkSubpassDescription Initializer::subpassDescription(
+    std::vector<VkAttachmentReference> const& colorAttachments,
+    VkAttachmentReference const* depthStencilAttachment,
     VkSubpassDescriptionFlags flags,
     VkPipelineBindPoint pipelineBindPoint,
     std::vector<VkAttachmentReference> const& inputAttachments,
-    std::vector<VkAttachmentReference> const& colorAttachments,
     std::vector<VkAttachmentReference> const& resolveAttachments,
-    VkAttachmentReference const* depthStencilAttachment,
     std::vector<u32> const& preserveAttachments)
 {
     VkSubpassDescription description = {};
@@ -57,12 +55,9 @@ VkSubpassDescription Initializer::subpassDescription(
 }
 
 VkSubpassDependency Initializer::subpassDependency(
-    u32 srcSubpass,
-    u32 dstSubpass,
-    VkPipelineStageFlags srcStageMask,
-    VkPipelineStageFlags dstStageMask,
-    VkAccessFlags srcAccessMask,
-    VkAccessFlags dstAccessMask,
+    u32 srcSubpass, u32 dstSubpass,
+    VkPipelineStageFlags srcStageMask, VkPipelineStageFlags dstStageMask,
+    VkAccessFlags srcAccessMask, VkAccessFlags dstAccessMask,
     VkDependencyFlags dependencyFlags)
 {
     VkSubpassDependency dependency = {};

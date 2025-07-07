@@ -6,11 +6,11 @@
 class RenderLayerMesh : public RenderLayerBase {
 public:
     RenderLayerMesh(
-        Globals const& globals,
+        Context const& globals,
         std::vector<DescriptorSetBinding> const& descriptorSetBindings,
         std::vector<PipelineCreateInfo> const& pipelineCreateInfos);
 
-    void recordCommandBuffer(Globals const& globals, VkCommandBuffer commandBuffer, u32 swapchainImage) override;
+    void recordCommandBuffer(Context const& globals, VkCommandBuffer commandBuffer, u32 swapchainImage) override;
 
 private:
     Buffer vertexBuffer;
@@ -18,7 +18,7 @@ private:
     DescriptorSets descriptorSets; // global, per-frame data
     std::vector<Pipeline> pipelines;
 
-    void createRenderPass(Globals const& globals) override;
-    void createFramebuffers(Globals const& globals) override;
-    void createPipelines(Globals const& globals, std::vector<PipelineCreateInfo> const& pipelineCreateInfos);
+    void createRenderPass(Context const& globals) override;
+    void createFramebuffers(Context const& globals) override;
+    void createPipelines(Context const& globals, std::vector<PipelineCreateInfo> const& pipelineCreateInfos);
 };

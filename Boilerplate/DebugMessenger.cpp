@@ -11,7 +11,7 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debugUtilsMessengerCallback(
     VkDebugUtilsMessengerCallbackDataEXT const* callbackData,
     void* userData);
 
-void DebugMessenger::initCreateInfo(Globals& globals)
+void DebugMessenger::initCreateInfo(Context& globals)
 {
     globals.debugMessengerCreateInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
     globals.debugMessengerCreateInfo.pNext = nullptr;
@@ -22,7 +22,7 @@ void DebugMessenger::initCreateInfo(Globals& globals)
     globals.debugMessengerCreateInfo.pUserData = nullptr;
 }
 
-void DebugMessenger::create(Globals const& globals)
+void DebugMessenger::create(Context const& globals)
 {
     auto func = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(globals.instance, "vkCreateDebugUtilsMessengerEXT");
     if (func) {
@@ -37,7 +37,7 @@ void DebugMessenger::create(Globals const& globals)
     }
 }
 
-void DebugMessenger::destroy(Globals const& globals)
+void DebugMessenger::destroy(Context const& globals)
 {
     auto func = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(globals.instance, "vkDestroyDebugUtilsMessengerEXT");
     if (func) {

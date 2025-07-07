@@ -9,31 +9,26 @@
 class Initializer {
 public:
     static VkAttachmentDescription attachmentDescription(
-        VkAttachmentDescriptionFlags flags,
         VkFormat format,
-        VkSampleCountFlagBits samples,
-        VkAttachmentLoadOp loadOp,
-        VkAttachmentStoreOp storeOp,
-        VkAttachmentLoadOp stencilLoadOp,
-        VkAttachmentStoreOp stencilStoreOp,
-        VkImageLayout initialLayout,
-        VkImageLayout finalLayout);
+        VkAttachmentLoadOp loadOp, VkAttachmentStoreOp storeOp,
+        VkImageLayout initialLayout, VkImageLayout finalLayout,
+        VkAttachmentDescriptionFlags flags = 0,
+        VkSampleCountFlagBits samples = VK_SAMPLE_COUNT_1_BIT,
+        VkAttachmentLoadOp stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+        VkAttachmentStoreOp stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE);
     static VkAttachmentReference attachmentReference(u32 attachment, VkImageLayout layout);
     static VkSubpassDescription subpassDescription(
-        VkSubpassDescriptionFlags flags,
-        VkPipelineBindPoint pipelineBindPoint,
-        std::vector<VkAttachmentReference> const& inputAttachments,
         std::vector<VkAttachmentReference> const& colorAttachments,
-        std::vector<VkAttachmentReference> const& resolveAttachments,
         VkAttachmentReference const* depthStencilAttachment,
-        std::vector<u32> const& preserveAttachments);
+        VkSubpassDescriptionFlags flags = 0,
+        VkPipelineBindPoint pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
+        std::vector<VkAttachmentReference> const& inputAttachments = std::vector<VkAttachmentReference>(),
+        std::vector<VkAttachmentReference> const& resolveAttachments = std::vector<VkAttachmentReference>(),
+        std::vector<u32> const& preserveAttachments = std::vector<u32>());
     static VkSubpassDependency subpassDependency(
-        u32 srcSubpass,
-        u32 dstSubpass,
-        VkPipelineStageFlags srcStageMask,
-        VkPipelineStageFlags dstStageMask,
-        VkAccessFlags srcAccessMask,
-        VkAccessFlags dstAccessMask,
+        u32 srcSubpass, u32 dstSubpass,
+        VkPipelineStageFlags srcStageMask, VkPipelineStageFlags dstStageMask,
+        VkAccessFlags srcAccessMask, VkAccessFlags dstAccessMask,
         VkDependencyFlags dependencyFlags = 0);
     static VkRenderPassCreateInfo renderPassCreateInfo(
         std::vector<VkAttachmentDescription> const& attachments,

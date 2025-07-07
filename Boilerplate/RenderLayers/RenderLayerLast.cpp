@@ -2,12 +2,12 @@
 #include "Boilerplate/Initializer.h"
 #include "Boilerplate/Utils.h"
 
-RenderLayerLast::RenderLayerLast(Globals const& globals)
+RenderLayerLast::RenderLayerLast(Context const& globals)
 {
     createRenderPass(globals);
 }
 
-void RenderLayerLast::recordRenderPass(Globals const& globals, VkCommandBuffer commandBuffer, u32 swapchainImageIndex)
+void RenderLayerLast::recordRenderPass(Context const& globals, VkCommandBuffer commandBuffer, u32 swapchainImageIndex)
 {
     VkRect2D renderArea;
     renderArea.offset = { 0, 0 };
@@ -25,7 +25,7 @@ void RenderLayerLast::recordRenderPass(Globals const& globals, VkCommandBuffer c
     vkCmdEndRenderPass(commandBuffer);
 }
 
-void RenderLayerLast::createRenderPass(Globals const& globals)
+void RenderLayerLast::createRenderPass(Context const& globals)
 {
     std::vector<VkAttachmentDescription> attachmentDescriptions(2);
     attachmentDescriptions[0] = Initializer::attachmentDescription(

@@ -3,7 +3,7 @@
 
 #include <set>
 
-void Swapchain::create(Globals& globals)
+void Swapchain::create(Context& globals)
 {
     auto imageCount = globals.swapchain.support.capabilities.minImageCount + 1;
     u32 uniqueQueueFamilyIndices[] = { globals.device.queues.graphics.index, globals.device.queues.present.index };
@@ -77,7 +77,7 @@ void Swapchain::create(Globals& globals)
     globals.swapchain.depthStencilBuffer.format = globals.swapchain.depthStencilBuffer.format;
     globals.swapchain.depthStencilBuffer.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
     globals.swapchain.depthStencilBuffer.memoryProperties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-    globals.swapchain.depthStencilBuffer.aspect = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
+    globals.swapchain.depthStencilBuffer.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
 
     createImage(globals, globals.swapchain.depthStencilBuffer);
     createImageView(globals, globals.swapchain.depthStencilBuffer);
@@ -106,7 +106,7 @@ void Swapchain::create(Globals& globals)
     LOG_DEBUG("Framebuffer successfully created");
 }
 
-void Swapchain::destroy(Globals const& globals)
+void Swapchain::destroy(Context const& globals)
 {
     for (auto framebuffer : globals.swapchain.framebuffers) {
         vkDestroyFramebuffer(globals.device.handle, framebuffer, globals.allocator);

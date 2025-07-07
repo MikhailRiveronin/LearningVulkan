@@ -7,50 +7,60 @@
 #include <optional>
 #include <vector>
 
+enum class PhysicalDeviceType {
+    DISCRETE,
+    INTEGRATED,
+    SOFTWARE
+};
+
+struct ContextConfig {
+    bool enableValidation = true;
+    PhysicalDeviceType physicalDeviceType = PhysicalDeviceType::DISCRETE;
+};
+
 struct Buffer {
     VkBuffer handle = VK_NULL_HANDLE;
     VkDeviceMemory memory = VK_NULL_HANDLE;
-
     VkDeviceSize size = 0;
     VkBufferUsageFlags usage = 0;
     VkMemoryPropertyFlags memoryProperties = 0;
-
     void* mapped = nullptr;
-    u32 alignment = 0;
+    // u32 alignment = 0;
 };
 
 struct Image {
     VkImage handle = VK_NULL_HANDLE;
     VkDeviceMemory memory = VK_NULL_HANDLE;
-    VkImageView view = VK_NULL_HANDLE;
-
+    VkImageCreateFlags flags = 0;
+    VkImageType imageType = VK_IMAGE_TYPE_2D;
     VkFormat format = VK_FORMAT_R8G8B8A8_SRGB;
-    VkSampleCountFlagBits samples = VK_SAMPLE_COUNT_1_BIT;
-    VkImageTiling tiling = VK_IMAGE_TILING_OPTIMAL;
-    VkImageLayout layout = VK_IMAGE_LAYOUT_UNDEFINED;
-    VkSharingMode sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-    VkImageAspectFlags aspect = VK_IMAGE_ASPECT_COLOR_BIT;
-
     u32 width = 0;
     u32 height = 0;
     u32 mipLevels = 1;
     u32 arrayLayers = 1;
-
+    VkSampleCountFlagBits samples = VK_SAMPLE_COUNT_1_BIT;
+    VkImageTiling tiling = VK_IMAGE_TILING_OPTIMAL;
     VkImageUsageFlags usage = 0;
+    VkSharingMode sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    u32 queueFamilyIndexCount = 0;
+    u32* queueFamilyIndices = nullptr;
+    VkImageLayout initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
     VkMemoryPropertyFlags memoryProperties = 0;
 
-    u32 queueCount = 0;
-    u32* queueIndices = nullptr;
-};
+    struct {
+        VkImageView handle = VK_NULL_HANDLE;
+        VkImageViewType viewType = VK_IMAGE_VIEW_TYPE_2D;
+        VkImageAspectFlags aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    } view;
 
-struct Sampler {
-    VkSampler handle = VK_NULL_HANDLE;
-
-    VkFilter magFilter = VK_FILTER_LINEAR;
-    VkFilter minFilter = VK_FILTER_LINEAR;
-    VkSamplerMipmapMode mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-    VkSamplerAddressMode addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-    VkSamplerAddressMode addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    struct {
+        VkSampler handle = VK_NULL_HANDLE;
+        VkFilter magFilter = VK_FILTER_LINEAR;
+        VkFilter minFilter = VK_FILTER_LINEAR;
+        VkSamplerMipmapMode mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+        VkSamplerAddressMode addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        VkSamplerAddressMode addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    } sampler;
 };
 
 struct ShaderStage {
@@ -65,7 +75,7 @@ struct Texture {
     Sampler sampler;
 };
 
-struct Globals {
+struct Context {
     VkAllocationCallbacks* allocator;
 
 #ifdef _DEBUG
@@ -104,7 +114,8 @@ struct Globals {
                 u32 index;
             } present;
         } queues;
-    } device;
+    } 
+    device;
 
     struct {
         VkSwapchainKHR handle = VK_NULL_HANDLE;

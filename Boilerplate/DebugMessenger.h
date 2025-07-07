@@ -7,10 +7,10 @@
 #ifdef _DEBUG
 class DebugMessenger {
 public:
-    void initCreateInfo(Globals& globals);
+    void initCreateInfo(Context& globals);
 
-    void create(Globals const& globals);
-    void destroy(Globals const& globals);
+    void create(Context const& globals);
+    void destroy(Context const& globals);
 
 private:
     VkDebugUtilsMessengerEXT debugUtilsMessenger;

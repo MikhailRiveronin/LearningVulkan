@@ -4,7 +4,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <algorithm>
 
-Camera::Camera(Globals const& globals, glm::vec3 const& pos) :
+Camera::Camera(Context const& globals, glm::vec3 const& pos) :
     pos(pos),
     yaw(-glm::half_pi<float>()),
     pitch(0.f),

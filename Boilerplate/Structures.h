@@ -61,6 +61,8 @@ struct Image {
         VkSamplerAddressMode addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
         VkSamplerAddressMode addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
     } sampler;
+
+    VkAttachmentLoadOp loadOp;
 };
 
 struct ShaderStage {

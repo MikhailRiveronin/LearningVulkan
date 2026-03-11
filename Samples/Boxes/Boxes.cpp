@@ -106,7 +106,7 @@ void Boxes::createMeshes()
             stagingBuffer.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
             stagingBuffer.memoryProperties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
             createBuffer(globals, stagingBuffer);
-            THROW_IF_FAILED(
+            VK_CHECK(
                 vkMapMemory(globals.device.handle, stagingBuffer.memory, 0, stagingBuffer.size, 0, &stagingBuffer.mapped),
                 __FILE__, __LINE__,
                 "Failed to map memory");
@@ -126,7 +126,7 @@ void Boxes::createMeshes()
             stagingBuffer.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
             stagingBuffer.memoryProperties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
             createBuffer(globals, stagingBuffer);
-            THROW_IF_FAILED(
+            VK_CHECK(
                 vkMapMemory(globals.device.handle, stagingBuffer.memory, 0, stagingBuffer.size, 0, &stagingBuffer.mapped),
                 __FILE__, __LINE__,
                 "Failed to map memory");
@@ -407,7 +407,7 @@ void Boxes::createFrameResources()
             frameResources[i].passBuffer.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
             frameResources[i].passBuffer.memoryProperties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
             createBuffer(globals, frameResources[i].passBuffer);
-            THROW_IF_FAILED(
+            VK_CHECK(
                 vkMapMemory(globals.device.handle, frameResources[i].passBuffer.memory, 0, frameResources[i].passBuffer.size, 0, &frameResources[i].passBuffer.mapped),
                 __FILE__, __LINE__,
                 "Failed to map memory");
@@ -418,7 +418,7 @@ void Boxes::createFrameResources()
             stagingBuffer.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
             stagingBuffer.memoryProperties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
             createBuffer(globals, stagingBuffer);
-            THROW_IF_FAILED(
+            VK_CHECK(
                 vkMapMemory(globals.device.handle, stagingBuffer.memory, 0, stagingBuffer.size, 0, &stagingBuffer.mapped),
                 __FILE__, __LINE__,
                 "Failed to map memory");
@@ -437,7 +437,7 @@ void Boxes::createFrameResources()
             frameResources[i].spotLightBuffer.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
             frameResources[i].spotLightBuffer.memoryProperties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
             createBuffer(globals, frameResources[i].spotLightBuffer);
-            THROW_IF_FAILED(
+            VK_CHECK(
                 vkMapMemory(globals.device.handle, frameResources[i].spotLightBuffer.memory, 0, frameResources[i].spotLightBuffer.size, 0, &frameResources[i].spotLightBuffer.mapped),
                 __FILE__, __LINE__,
                 "Failed to map memory");
@@ -448,7 +448,7 @@ void Boxes::createFrameResources()
             stagingBuffer.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
             stagingBuffer.memoryProperties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
             createBuffer(globals, stagingBuffer);
-            THROW_IF_FAILED(
+            VK_CHECK(
                 vkMapMemory(globals.device.handle, stagingBuffer.memory, 0, stagingBuffer.size, 0, &stagingBuffer.mapped),
                 __FILE__, __LINE__,
                 "Failed to map memory");
@@ -468,7 +468,7 @@ void Boxes::createFrameResources()
             stagingBuffer.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
             stagingBuffer.memoryProperties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
             createBuffer(globals, stagingBuffer);
-            THROW_IF_FAILED(
+            VK_CHECK(
                 vkMapMemory(globals.device.handle, stagingBuffer.memory, 0, stagingBuffer.size, 0, &stagingBuffer.mapped),
                 __FILE__, __LINE__,
                 "Failed to map memory");
@@ -489,7 +489,7 @@ void Boxes::createFrameResources()
             stagingBuffer.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
             stagingBuffer.memoryProperties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
             createBuffer(globals, stagingBuffer);
-            THROW_IF_FAILED(
+            VK_CHECK(
                 vkMapMemory(globals.device.handle, stagingBuffer.memory, 0, stagingBuffer.size, 0, &stagingBuffer.mapped),
                 __FILE__, __LINE__,
                 "Failed to map memory");
@@ -519,7 +519,7 @@ void Boxes::createResourceDescriptors()
         poolSizes[2] = Initializer::descriptorPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, framesInFlight);
         poolSizes[3] = Initializer::descriptorPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, framesInFlight);
         auto descriptorPoolCreateInfo = Initializer::descriptorPoolCreateInfo(framesInFlight, poolSizes);
-        THROW_IF_FAILED(
+        VK_CHECK(
             vkCreateDescriptorPool(globals.device.handle, &descriptorPoolCreateInfo, globals.allocator, &resourceDescriptors[0].pool),
             __FILE__, __LINE__,
             "Failed to create descriptor pool");
@@ -530,7 +530,7 @@ void Boxes::createResourceDescriptors()
         bindings[2] = Initializer::descriptorSetLayoutBinding(2, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
         bindings[3] = Initializer::descriptorSetLayoutBinding(3, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
         auto descriptorSetLayoutCreateInfo = Initializer::descriptorSetLayoutCreateInfo(bindings);
-        THROW_IF_FAILED(
+        VK_CHECK(
             vkCreateDescriptorSetLayout(globals.device.handle, &descriptorSetLayoutCreateInfo, globals.allocator, &resourceDescriptors[0].setLayout),
             __FILE__, __LINE__,
             "Failed to create descriptor set layout");
@@ -538,7 +538,7 @@ void Boxes::createResourceDescriptors()
         std::vector<VkDescriptorSetLayout> setLayouts(framesInFlight, resourceDescriptors[0].setLayout);
         auto descriptorSetAllocateInfo = Initializer::descriptorSetAllocateInfo(resourceDescriptors[0].pool, framesInFlight, setLayouts);
         resourceDescriptors[0].handles.resize(framesInFlight);
-        THROW_IF_FAILED(
+        VK_CHECK(
             vkAllocateDescriptorSets(globals.device.handle, &descriptorSetAllocateInfo, resourceDescriptors[0].handles.data()),
             __FILE__, __LINE__,
             "Failed to allocate descriptor sets");
@@ -569,7 +569,7 @@ void Boxes::createResourceDescriptors()
         poolSizes[0] = Initializer::descriptorPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, framesInFlight);
         poolSizes[1] = Initializer::descriptorPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, framesInFlight * textures.size());
         auto descriptorPoolCreateInfo = Initializer::descriptorPoolCreateInfo(framesInFlight, poolSizes);
-        THROW_IF_FAILED(
+        VK_CHECK(
             vkCreateDescriptorPool(globals.device.handle, &descriptorPoolCreateInfo, globals.allocator, &resourceDescriptors[1].pool),
             __FILE__, __LINE__,
             "Failed to create descriptor pool");
@@ -582,7 +582,7 @@ void Boxes::createResourceDescriptors()
         descriptorBindingFlags[1] = VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT;
         auto descriptorSetLayoutBindingFlagsCreateInfo = Initializer::descriptorSetLayoutBindingFlagsCreateInfo(descriptorBindingFlags);
         auto descriptorSetLayoutCreateInfo = Initializer::descriptorSetLayoutCreateInfo(bindings, &descriptorSetLayoutBindingFlagsCreateInfo);
-        THROW_IF_FAILED(
+        VK_CHECK(
             vkCreateDescriptorSetLayout(globals.device.handle, &descriptorSetLayoutCreateInfo, globals.allocator, &resourceDescriptors[1].setLayout),
             __FILE__, __LINE__,
             "Failed to create descriptor set layout");
@@ -596,7 +596,7 @@ void Boxes::createResourceDescriptors()
             setLayouts,
             &descriptorSetVariableDescriptorCountAllocateInfo);
         resourceDescriptors[1].handles.resize(framesInFlight);
-        THROW_IF_FAILED(
+        VK_CHECK(
             vkAllocateDescriptorSets(globals.device.handle, &descriptorSetAllocateInfo, resourceDescriptors[1].handles.data()),
             __FILE__, __LINE__,
             "Failed to allocate descriptor sets");
@@ -628,7 +628,7 @@ void Boxes::createResourceDescriptors()
         std::vector<VkDescriptorPoolSize> poolSizes(1);
         poolSizes[0] = Initializer::descriptorPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, framesInFlight);
         auto descriptorPoolCreateInfo = Initializer::descriptorPoolCreateInfo(framesInFlight, poolSizes);
-        THROW_IF_FAILED(
+        VK_CHECK(
             vkCreateDescriptorPool(globals.device.handle, &descriptorPoolCreateInfo, globals.allocator, &resourceDescriptors[2].pool),
             __FILE__, __LINE__,
             "Failed to create descriptor pool");
@@ -636,7 +636,7 @@ void Boxes::createResourceDescriptors()
         std::vector<VkDescriptorSetLayoutBinding> bindings(1);
         bindings[0] = Initializer::descriptorSetLayoutBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
         auto descriptorSetLayoutCreateInfo = Initializer::descriptorSetLayoutCreateInfo(bindings);
-        THROW_IF_FAILED(
+        VK_CHECK(
             vkCreateDescriptorSetLayout(globals.device.handle, &descriptorSetLayoutCreateInfo, globals.allocator, &resourceDescriptors[2].setLayout),
             __FILE__, __LINE__,
             "Failed to create descriptor set layout");
@@ -644,7 +644,7 @@ void Boxes::createResourceDescriptors()
         std::vector<VkDescriptorSetLayout> setLayouts(framesInFlight, resourceDescriptors[2].setLayout);
         auto descriptorSetAllocateInfo = Initializer::descriptorSetAllocateInfo(resourceDescriptors[2].pool, framesInFlight, setLayouts);
         resourceDescriptors[2].handles.resize(framesInFlight);
-        THROW_IF_FAILED(
+        VK_CHECK(
             vkAllocateDescriptorSets(globals.device.handle, &descriptorSetAllocateInfo, resourceDescriptors[2].handles.data()),
             __FILE__, __LINE__,
             "Failed to allocate descriptor sets");
@@ -677,7 +677,7 @@ void Boxes::createPipelines()
         {
             auto code = loadShaderCode("Boxes/CubeVertex.spv");
             auto shaderModuleCreateInfo = Initializer::shaderModuleCreateInfo(code);
-            THROW_IF_FAILED(
+            VK_CHECK(
                 vkCreateShaderModule(globals.device.handle, &shaderModuleCreateInfo, globals.allocator, &shaderModule[0]),
                 __FILE__, __LINE__,
                 "Failed to create shader module");
@@ -686,7 +686,7 @@ void Boxes::createPipelines()
         {
             auto code = loadShaderCode("Boxes/CubeFragment.spv");
             auto shaderModuleCreateInfo = Initializer::shaderModuleCreateInfo(code);
-            THROW_IF_FAILED(
+            VK_CHECK(
                 vkCreateShaderModule(globals.device.handle, &shaderModuleCreateInfo, globals.allocator, &shaderModule[1]),
                 __FILE__, __LINE__,
                 "Failed to create shader module");
@@ -728,7 +728,7 @@ void Boxes::createPipelines()
         descriptorSetLayouts[1] = resourceDescriptors[1].setLayout;
         descriptorSetLayouts[2] = resourceDescriptors[2].setLayout;
         auto pipelineLayoutCreateInfo = Initializer::pipelineLayoutCreateInfo(descriptorSetLayouts, pushConstantRanges);
-        THROW_IF_FAILED(
+        VK_CHECK(
             vkCreatePipelineLayout(globals.device.handle, &pipelineLayoutCreateInfo, globals.allocator, &pipelineLayouts[0]),
             __FILE__, __LINE__,
             "Failed to create pipeline layout");
@@ -746,7 +746,7 @@ void Boxes::createPipelines()
             &dynamicState,
             pipelineLayouts[0],
             globals.renderPass);
-        THROW_IF_FAILED(
+        VK_CHECK(
             vkCreateGraphicsPipelines(globals.device.handle, VK_NULL_HANDLE, 1, &createInfo, globals.allocator, &pipelines[0]),
             __FILE__, __LINE__,
             "Failed to create graphics pipeline");
@@ -760,7 +760,7 @@ void Boxes::createPipelines()
         {
             auto code = loadShaderCode("Boxes/LightCubeVertex.spv");
             auto shaderModuleCreateInfo = Initializer::shaderModuleCreateInfo(code);
-            THROW_IF_FAILED(
+            VK_CHECK(
                 vkCreateShaderModule(globals.device.handle, &shaderModuleCreateInfo, globals.allocator, &shaderModule[0]),
                 __FILE__, __LINE__,
                 "Failed to create shader module");
@@ -769,7 +769,7 @@ void Boxes::createPipelines()
         {
             auto code = loadShaderCode("Boxes/LightCubeFragment.spv");
             auto shaderModuleCreateInfo = Initializer::shaderModuleCreateInfo(code);
-            THROW_IF_FAILED(
+            VK_CHECK(
                 vkCreateShaderModule(globals.device.handle, &shaderModuleCreateInfo, globals.allocator, &shaderModule[1]),
                 __FILE__, __LINE__,
                 "Failed to create shader module");
@@ -811,7 +811,7 @@ void Boxes::createPipelines()
         descriptorSetLayouts[1] = resourceDescriptors[1].setLayout;
         descriptorSetLayouts[2] = resourceDescriptors[2].setLayout;
         auto pipelineLayoutCreateInfo = Initializer::pipelineLayoutCreateInfo(descriptorSetLayouts, pushConstantRanges);
-        THROW_IF_FAILED(
+        VK_CHECK(
             vkCreatePipelineLayout(globals.device.handle, &pipelineLayoutCreateInfo, globals.allocator, &pipelineLayouts[1]),
             __FILE__, __LINE__,
             "Failed to create pipeline layout");
@@ -829,7 +829,7 @@ void Boxes::createPipelines()
             &dynamicState,
             pipelineLayouts[1],
             globals.renderPass);
-        THROW_IF_FAILED(
+        VK_CHECK(
             vkCreateGraphicsPipelines(globals.device.handle, VK_NULL_HANDLE, 1, &createInfo, globals.allocator, &pipelines[1]),
             __FILE__, __LINE__,
             "Failed to create graphics pipeline");
@@ -842,7 +842,7 @@ void Boxes::createPipelines()
 void Boxes::recordCommandBuffer(VkCommandBuffer commandBuffer, u32 imageIndex, u32 frameIndex, ImDrawData* draw_data)
 {
     auto commandBufferBeginInfo = Initializer::commandBufferBeginInfo();
-    THROW_IF_FAILED(
+    VK_CHECK(
         vkBeginCommandBuffer(commandBuffer, &commandBufferBeginInfo),
         __FILE__, __LINE__,
         "Failed to begin command buffer");
@@ -942,7 +942,7 @@ void Boxes::recordCommandBuffer(VkCommandBuffer commandBuffer, u32 imageIndex, u
     ImGui_ImplVulkan_RenderDrawData(draw_data, globals.graphicsCommandBuffer.buffers[frameIndex]);
 
     vkCmdEndRenderPass(commandBuffer);
-    THROW_IF_FAILED(
+    VK_CHECK(
         vkEndCommandBuffer(commandBuffer),
         __FILE__, __LINE__,
         "Failed to end command buffer");

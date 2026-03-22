@@ -2,7 +2,7 @@
 
 #include "Defines.h"
 #include "Logger.h"
-#include "Structures.h"
+#include "structures.h"
 
 #include <vulkan/vulkan.h>
 
@@ -20,9 +20,11 @@
 
 void createBuffer(Context const& globals, Buffer& buffer);
 void createImage(Context const& globals, Image& image);
+void create_attachment(Context const& context, Attachment& attachment);
 
 void destroyBuffer(Context const& globals, Buffer& buffer);
 void destroyImage(Context const& globals, Image const& image);
+void destroy_attachment(Context const& context, Attachment& attachment);
 
 void copyBuffer(Context const& globals, Buffer& srcBuffer, Buffer& dstBuffer);
 void copyBufferToImage(Context const& globals, Buffer& buffer, Image& image);
@@ -59,3 +61,6 @@ void createCubeTexture(
     char const* left, char const* right,
     char const* up, char const* down,
     Image& image);
+
+
+void load_gltf(Context const& context, std::string const& filename);

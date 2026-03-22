@@ -24,14 +24,19 @@ void GltfModel::load(std::string filename)
 void GltfModel::loadNodes()
 {
     nodes.resize(model.nodes.size());
-    for (u32 i = 0; i < model.nodes.size(); ++i) {
-        if (!model.nodes[i].matrix.empty()) {
+    for (u32 i = 0; i < model.nodes.size(); ++i)
+    {
+        if (!model.nodes[i].matrix.empty())
+        {
             std::vector<float> matrix(model.nodes[i].matrix.size());
-            for (u32 i = 0; i < model.nodes[i].matrix.size(); ++i) {
+            for (u32 i = 0; i < model.nodes[i].matrix.size(); ++i)
+            {
                 matrix[i] = model.nodes[i].matrix[i];
             }
             nodes[i].localTransform = glm::make_mat4(matrix.data());
-        } else {
+        }
+        else
+        {
             std::vector<float> scale(3, 1.f);
             for (u32 i = 0; i < model.nodes[i].scale.size(); ++i) {
                 scale[i] = model.nodes[i].scale[i];
@@ -71,13 +76,16 @@ void GltfModel::loadMeshes(Context const& globals)
 {
     meshes.resize(model.meshes.size());
     
-    for (u32 i = 0; i < model.meshes.size(); ++i) {
+    for (u32 i = 0; i < model.meshes.size(); ++i)
+    {
         meshes[i].primitives.resize(model.meshes[i].primitives.size());
-        for (u32 j = 0; j < model.meshes[i].primitives.size(); ++j) {
+        for (u32 j = 0; j < model.meshes[i].primitives.size(); ++j)
+        {
             meshes[i].primitives[j].firstIndex = indices.size();
             meshes[i].primitives[j].vertexOffset = positions.size();
 
-            if (model.meshes[i].primitives[j].attributes.count("POSITION") != 0) {
+            if (model.meshes[i].primitives[j].attributes.count("POSITION") != 0)
+            {
                 auto& accessor = model.accessors[model.meshes[i].primitives[j].attributes["POSITION"]];
                 auto& bufferView = model.bufferViews[accessor.bufferView];
                 auto& buffer = model.buffers[bufferView.buffer];
@@ -104,7 +112,8 @@ void GltfModel::loadMeshes(Context const& globals)
                 tangents.insert(tangents.end(), data.begin(), data.end());
             }
 
-            if (model.meshes[i].primitives[j].attributes.count("TEXCOORD_0") != 0) {
+            if (model.meshes[i].primitives[j].attributes.count("TEXCOORD_0") != 0)
+            {
                 auto& accessor = model.accessors[model.meshes[i].primitives[j].attributes["TEXCOORD_0"]];
                 auto& bufferView = model.bufferViews[accessor.bufferView];
                 auto& buffer = model.buffers[bufferView.buffer];
@@ -552,8 +561,8 @@ void GltfModel::loadMaterials()
 
 void GltfModel::createFrameResources(Context const& globals)
 {
-    frameResources.resize(framesInFlight);
-    for (u32 i = 0; i < framesInFlight; ++i) {
+    frameResources.resize(frames_in_flight);
+    for (u32 i = 0; i < frames_in_flight; ++i) {
         {
             Buffer stagingBuffer;
             stagingBuffer.size = materials.size() * sizeof(materials[0]);
@@ -606,9 +615,9 @@ void GltfModel::createDescriptors(Context const& globals)
     resourceDescriptors.resize(2);
     {
         std::vector<VkDescriptorPoolSize> poolSizes(2);
-        poolSizes[0] = Initializer::descriptorPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, framesInFlight);
-        poolSizes[1] = Initializer::descriptorPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, framesInFlight * images.size());
-        auto descriptorPoolCreateInfo = Initializer::descriptorPoolCreateInfo(framesInFlight, poolSizes);
+        poolSizes[0] = Initializer::descriptorPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, frames_in_flight);
+        poolSizes[1] = Initializer::descriptorPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, frames_in_flight * images.size());
+        auto descriptorPoolCreateInfo = Initializer::descriptorPoolCreateInfo(frames_in_flight, poolSizes);
         VK_CHECK(
             vkCreateDescriptorPool(globals.device.handle, &descriptorPoolCreateInfo, globals.allocator, &resourceDescriptors[0].pool),
             __FILE__, __LINE__,
@@ -627,21 +636,21 @@ void GltfModel::createDescriptors(Context const& globals)
             __FILE__, __LINE__,
             "Failed to create descriptor set layout");
 
-        std::vector<u32> descriptorCounts(framesInFlight, images.size());
+        std::vector<u32> descriptorCounts(frames_in_flight, images.size());
         auto descriptorSetVariableDescriptorCountAllocateInfo = Initializer::descriptorSetVariableDescriptorCountAllocateInfo(descriptorCounts);
-        std::vector<VkDescriptorSetLayout> setLayouts(framesInFlight, resourceDescriptors[0].setLayout);
+        std::vector<VkDescriptorSetLayout> setLayouts(frames_in_flight, resourceDescriptors[0].setLayout);
         auto descriptorSetAllocateInfo = Initializer::descriptorSetAllocateInfo(
             resourceDescriptors[0].pool,
-            framesInFlight,
+            frames_in_flight,
             setLayouts,
             &descriptorSetVariableDescriptorCountAllocateInfo);
-        resourceDescriptors[0].handles.resize(framesInFlight);
+        resourceDescriptors[0].handles.resize(frames_in_flight);
         VK_CHECK(
             vkAllocateDescriptorSets(globals.device.handle, &descriptorSetAllocateInfo, resourceDescriptors[0].handles.data()),
             __FILE__, __LINE__,
             "Failed to allocate descriptor sets");
 
-        for (u32 i = 0; i < framesInFlight; ++i) {
+        for (u32 i = 0; i < frames_in_flight; ++i) {
             std::vector<VkDescriptorBufferInfo> bufferDescriptors(1);
             bufferDescriptors[0] = Initializer::descriptorBufferInfo(frameResources[i].materialBuffer.handle, 0);
             std::vector<VkDescriptorImageInfo> imageDescriptors(images.size());
@@ -666,8 +675,8 @@ void GltfModel::createDescriptors(Context const& globals)
     }
     {
         std::vector<VkDescriptorPoolSize> poolSizes(1);
-        poolSizes[0] = Initializer::descriptorPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, framesInFlight);
-        auto descriptorPoolCreateInfo = Initializer::descriptorPoolCreateInfo(framesInFlight, poolSizes);
+        poolSizes[0] = Initializer::descriptorPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, frames_in_flight);
+        auto descriptorPoolCreateInfo = Initializer::descriptorPoolCreateInfo(frames_in_flight, poolSizes);
         VK_CHECK(
             vkCreateDescriptorPool(globals.device.handle, &descriptorPoolCreateInfo, globals.allocator, &resourceDescriptors[1].pool),
             __FILE__, __LINE__,
@@ -681,15 +690,15 @@ void GltfModel::createDescriptors(Context const& globals)
             __FILE__, __LINE__,
             "Failed to create descriptor set layout");
 
-        std::vector<VkDescriptorSetLayout> setLayouts(framesInFlight, resourceDescriptors[1].setLayout);
-        auto descriptorSetAllocateInfo = Initializer::descriptorSetAllocateInfo(resourceDescriptors[1].pool, framesInFlight, setLayouts);
-        resourceDescriptors[1].handles.resize(framesInFlight);
+        std::vector<VkDescriptorSetLayout> setLayouts(frames_in_flight, resourceDescriptors[1].setLayout);
+        auto descriptorSetAllocateInfo = Initializer::descriptorSetAllocateInfo(resourceDescriptors[1].pool, frames_in_flight, setLayouts);
+        resourceDescriptors[1].handles.resize(frames_in_flight);
         VK_CHECK(
             vkAllocateDescriptorSets(globals.device.handle, &descriptorSetAllocateInfo, resourceDescriptors[1].handles.data()),
             __FILE__, __LINE__,
             "Failed to allocate descriptor sets");
 
-        for (u32 i = 0; i < framesInFlight; ++i) {
+        for (u32 i = 0; i < frames_in_flight; ++i) {
             std::vector<VkDescriptorBufferInfo> bufferDescriptors(1);
             bufferDescriptors[0] = Initializer::descriptorBufferInfo(frameResources[i].renderObjectBuffer.handle, 0, sizeof(nodes[0].globalTransform));
             std::vector<VkWriteDescriptorSet> descriptorWrites(1);

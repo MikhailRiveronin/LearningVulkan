@@ -1,22 +1,30 @@
 #pragma once
 
-#include "Defines.h"
+#include "defines.h"
+
 #include "EventManager.h"
-#include "Structures.h"
+#include "structures.h"
+#include "movable.h"
+#include "object.h"
 
-#include <glm/glm.hpp>
 
-class Camera : public Listener {
+
+class Camera : public Listener, public Object, public Movable
+{
 public:
     struct {
         glm::mat4 view = glm::mat4(1.f);
         glm::mat4 proj = glm::mat4(1.f);
     } matrices;
 
-    glm::vec3 pos;
-    glm::vec3 target;
+    std::string name;
+    float aspect_ratio;
+    float y_fov;
+    float z_near;
+    float z_far;
+    // glm::vec3 target;
 
-    Camera(Context const& globals, glm::vec3 const& pos);
+    Camera();
 
     void onNotify(EventType type, EventContext context) override;
 

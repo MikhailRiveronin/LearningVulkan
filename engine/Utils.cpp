@@ -1,7 +1,15 @@
 #include "Utils.h"
-#include "Initializer.h"
+#include "vulkan_struct_initializers.h"
+#include "scene_manager.h"
 
-#include <stb_image.h>
+#include "mesh.h"
+#include "mesh_manager.h"
+#include "texture.h"
+#include "texture_manager.h"
+
+#include "third_party/tiny_gltf.h"
+
+#include "third_party/stb_image.h"
 #include <fstream>
 
 std::vector<char> loadShaderCode(std::string const& filename)
@@ -119,6 +127,17 @@ void createImage(Context const& context, Image& image)
     }
 }
 
+void create_attachment(Context const& context, Attachment& attachment)
+{
+    auto image_create_info = Vulkan_Struct_Initializers::image_create_info(attachment.format, attachment.width, attachment.height, attachment.usage);
+    VmaAllocationCreateInfo image_allocation_create_info = {};
+    image_allocation_create_info.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+    VK_CHECK(vmaCreateImage(context.device->allocator, &image_create_info, &image_allocation_create_info, &attachment.handle, &attachment.allocation, 0));
+
+    auto image_view_create_info = Vulkan_Struct_Initializers::image_view_create_info(attachment.handle, VK_FORMAT_D24_UNORM_S8_UINT);
+    VK_CHECK(vkCreateImageView(context.device->handle, &image_view_create_info, nullptr, &attachment.view.handle));
+}
+
 void destroyBuffer(Context const& context, Buffer& buffer)
 {
     vkDestroyBuffer(context.device.handle, buffer.handle, context.allocator);
@@ -129,6 +148,12 @@ void destroyImage(Context const& context, Image const& image)
 {
     vkDestroyImage(context.device.handle, image.handle, context.allocator);
     vkFreeMemory(context.device.handle, image.memory, context.allocator);
+}
+
+void destroy_attachment(Context const& context, Attachment& attachment)
+{
+    vmaDestroyImage(context.device->allocator, attachment.handle, attachment.allocation);
+    vmaFreeMemory(context.device->allocator, attachment.allocation);
 }
 
 void copyBuffer(Context const& globals, Buffer& srcBuffer, Buffer& dstBuffer)
@@ -401,7 +426,7 @@ void createPipeline(Context const& globals,  Pipeline& pipeline)
         &colorBlendState,
         &dynamicState,
         pipeline.layout,
-        globals.renderPass);
+        globals.render_pass);
     VK_CHECK(
         vkCreateGraphicsPipelines(globals.device.handle, VK_NULL_HANDLE, 1, &createInfo, globals.allocator, &pipeline.handle),
         __FILE__, __LINE__,
@@ -535,4 +560,403 @@ void createCubeTexture(
     copyBufferToImage(context, stagingBuffer, image);
     destroyBuffer(context, stagingBuffer);
     transitionImageLayout(context, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+}
+
+void load_gltf(Context const& context, std::string const& filename)
+{
+    tinygltf::TinyGLTF loader;
+    tinygltf::Model model;
+    std::string errors;
+    std::string warnings;
+    if (!loader.LoadASCIIFromFile(&model, &errors, &warnings, filename))
+    {
+        LOG_ERROR("%s (%u): %s", __FILE__, __LINE__, errors.c_str());
+        throw std::runtime_error(errors);
+    }
+
+    
+
+    Scene_Manager::get_instance()->scenes.resize(model.scenes.size());
+    for (u32 scene_index = 0; scene_index < Scene_Manager::get_instance()->scenes.size(); ++scene_index)
+    {
+        auto set_node = [=, &model](Scene_Node& node, tinygltf::Node const& tinygltf_node, Scene_Node* parent)
+        {
+            node.name = tinygltf_node.name;
+            node.parent = parent;
+
+            if (!tinygltf_node.matrix.empty())
+            {
+                node.local_transform = glm::make_mat4(tinygltf_node.matrix.data());
+            }
+            else
+            {
+                node.local_transform = glm::translate(glm::mat4(1.0), glm::make_vec3(tinygltf_node.translation.data())) * glm::mat4_cast(glm::make_quat(tinygltf_node.rotation.data())) * glm::scale(glm::mat4(1.0), glm::make_vec3(tinygltf_node.scale.data()));
+            }
+
+            if (tinygltf_node.camera != -1 && model.cameras[tinygltf_node.camera].type == "perspective")
+            {
+                Camera camera;
+                camera.name = model.cameras[tinygltf_node.camera].name;
+                camera.aspect_ratio = model.cameras[tinygltf_node.camera].perspective.aspectRatio;
+                camera.y_fov = model.cameras[tinygltf_node.camera].perspective.yfov;
+                camera.z_near = model.cameras[tinygltf_node.camera].perspective.znear;
+                camera.z_far = model.cameras[tinygltf_node.camera].perspective.zfar;
+                Scene_Manager::get_instance()->scenes[scene_index].cameras.push_back(std::move(camera));
+            }
+
+            if (tinygltf_node.mesh != -1)
+            {
+                auto mesh = std::make_shared<Mesh>();
+                mesh->name = model.meshes[tinygltf_node.mesh].name;
+                mesh->sub_meshes.resize(model.meshes[tinygltf_node.mesh].primitives.size());
+                for (u32 sub_mesh_index = 0; sub_mesh_index < mesh->sub_meshes.size(); ++sub_mesh_index)
+                {
+                    if (model.meshes[tinygltf_node.mesh].primitives[sub_mesh_index].material != -1)
+                    {
+                        mesh->sub_meshes[sub_mesh_index].material_name = model.materials[model.meshes[tinygltf_node.mesh].primitives[sub_mesh_index].material].name;
+
+                        // TODO: add material resource
+
+                        // Add texture
+                        auto texture = std::make_shared<Texture>();
+                        texture->name = model.images[model.textures[model.materials[model.meshes[tinygltf_node.mesh].primitives[sub_mesh_index].material].pbrMetallicRoughness.baseColorTexture.index].source].name;
+                        texture->width = model.images[model.textures[model.materials[model.meshes[tinygltf_node.mesh].primitives[sub_mesh_index].material].pbrMetallicRoughness.baseColorTexture.index].source].width;
+                        texture->height = model.images[model.textures[model.materials[model.meshes[tinygltf_node.mesh].primitives[sub_mesh_index].material].pbrMetallicRoughness.baseColorTexture.index].source].height;
+                        texture->channel_count = model.images[model.textures[model.materials[model.meshes[tinygltf_node.mesh].primitives[sub_mesh_index].material].pbrMetallicRoughness.baseColorTexture.index].source].component;
+                        texture->data = model.images[model.textures[model.materials[model.meshes[tinygltf_node.mesh].primitives[sub_mesh_index].material].pbrMetallicRoughness.baseColorTexture.index].source].image;
+                        Texture_Manager::get_instance()->add_resource(texture->name, texture);
+                    }
+
+                    mesh->sub_meshes[sub_mesh_index].first_index = mesh->indices.size();
+                    mesh->sub_meshes[sub_mesh_index].vertex_offset = mesh->positions.size();
+
+                    if (model.meshes[tinygltf_node.mesh].primitives[sub_mesh_index].attributes.count("POSITION") != 0)
+                    {
+                        auto& accessor = model.meshes[tinygltf_node.mesh].primitives[sub_mesh_index].attributes["POSITION"];
+                        auto& buffer_view = model.bufferViews[accessor.bufferView];
+                        auto& buffer = model.buffers[buffer_view.buffer];
+                        std::vector<glm::vec3> data(accessor.count);
+                        memcpy(data.data(), buffer.data.data() + accessor.byteOffset + buffer_view.byteOffset, buffer_view.byteLength);
+                        mesh->positions.insert(mesh->positions.end(), data.begin(), data.end());
+                    }
+
+                    if (model.meshes[tinygltf_node.mesh].primitives[sub_mesh_index].attributes.count("NORMAL") != 0)
+                    {
+                        auto& accessor = model.meshes[tinygltf_node.mesh].primitives[sub_mesh_index].attributes["NORMAL"];
+                        auto& buffer_view = model.bufferViews[accessor.bufferView];
+                        auto& buffer = model.buffers[buffer_view.buffer];
+                        std::vector<glm::vec3> data(accessor.count);
+                        memcpy(data.data(), buffer.data.data() + accessor.byteOffset + buffer_view.byteOffset, buffer_view.byteLength);
+                        mesh->normals.insert(mesh->normals.end(), data.begin(), data.end());
+                    }
+
+                    if (model.meshes[tinygltf_node.mesh].primitives[sub_mesh_index].attributes.count("TANGENT") != 0)
+                    {
+                        auto& accessor = model.meshes[tinygltf_node.mesh].primitives[sub_mesh_index].attributes["TANGENT"];
+                        auto& buffer_view = model.bufferViews[accessor.bufferView];
+                        auto& buffer = model.buffers[buffer_view.buffer];
+                        std::vector<glm::vec4> data(accessor.count);
+                        memcpy(data.data(), buffer.data.data() + accessor.byteOffset + buffer_view.byteOffset, buffer_view.byteLength);
+                        mesh->tangents.insert(mesh->tangents.end(), data.begin(), data.end());
+                    }
+
+                    if (model.meshes[tinygltf_node.mesh].primitives[sub_mesh_index].attributes.count("TEXCOORD_0") != 0)
+                    {
+                        auto& accessor = model.meshes[tinygltf_node.mesh].primitives[sub_mesh_index].attributes["TEXCOORD_0"];
+                        auto& buffer_view = model.bufferViews[accessor.bufferView];
+                        auto& buffer = model.buffers[buffer_view.buffer];
+                        switch (accessor.componentType)
+                        {
+                            case TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE:
+                            {
+                                std::vector<glm::u8vec2> data(accessor.count);
+                                mesh->tex_coord.reserve(tex_coord.size() + accessor.count);
+                                memcpy(data.data(), buffer.data.data() + accessor.byteOffset + buffer_view.byteOffset, buffer_view.byteLength);
+                                for (u32 i = 0; i < accessor.count; ++i)
+                                {
+                                    mesh->tex_coord.push_back(glm::vec2(static_cast<float>(data[i][0]) / 255.f, static_cast<float>(data[i][1]) / 255.f));
+                                }
+
+                                break;
+                            }
+
+                            case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT:
+                            {
+                                std::vector<glm::u16vec2> data(accessor.count);
+                                mesh->tex_coord.reserve(mesh->tex_coord.size() + accessor.count);
+                                memcpy(data.data(), buffer.data.data() + accessor.byteOffset + buffer_view.byteOffset, buffer_view.byteLength);
+                                for (u32 i = 0; i < accessor.count; ++i)
+                                {
+                                    mesh->tex_coord.push_back(glm::vec2(static_cast<float>(data[i][0]) / 65535.f, static_cast<float>(data[i][1]) / 65535.f));
+                                }
+
+                                break;
+                            }
+
+                            case TINYGLTF_COMPONENT_TYPE_FLOAT:
+                            {
+                                std::vector<glm::vec2> data(accessor.count);
+                                memcpy(data.data(), buffer.data.data() + accessor.byteOffset + buffer_view.byteOffset, buffer_view.byteLength);
+                                mesh->tex_coord.insert(mesh->tex_coord.end(), data.begin(), data.end());
+
+                                break;
+                            }
+
+                            default:
+                                break;
+                        }
+                    }
+
+                    if (model.meshes[tinygltf_node.mesh].primitives[sub_mesh_index].attributes.count("COLOR_0") != 0)
+                    {
+                        auto& accessor = model.meshes[tinygltf_node.mesh].primitives[sub_mesh_index].attributes["COLOR_0"]];
+                        auto& buffer_view = model.bufferViews[accessor.bufferView];
+                        auto& buffer = model.buffers[buffer_view.buffer];
+                        switch (accessor.type)
+                        {
+                            case TINYGLTF_TYPE_VEC3:
+                            {
+                                switch (accessor.componentType)
+                                {
+                                    case TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE:
+                                    {
+                                        std::vector<glm::u8vec3> data(accessor.count);
+                                        mesh->colors.reserve(mesh->colors.size() + accessor.count);
+                                        memcpy(data.data(), buffer.data.data() + accessor.byteOffset + buffer_view.byteOffset, buffer_view.byteLength);
+                                        for (u32 i = 0; i < accessor.count; ++i)
+                                        {
+                                            mesh->colors.push_back(glm::vec4(static_cast<float>(data[i][0]) / 255.f, static_cast<float>(data[i][1]) / 255.f, static_cast<float>(data[i][2]) / 255.f, 1.f));
+                                        }
+
+                                        break;
+                                    }
+
+                                    case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT:
+                                    {
+                                        std::vector<glm::u16vec3> data(accessor.count);
+                                        mesh->colors.reserve(mesh->colors.size() + accessor.count);
+                                        memcpy(data.data(), buffer.data.data() + accessor.byteOffset + buffer_view.byteOffset, buffer_view.byteLength);
+                                        for (u32 i = 0; i < accessor.count; ++i)
+                                        {
+                                            mesh->colors.push_back(glm::vec4(static_cast<float>(data[i][0]) / 65535.f, static_cast<float>(data[i][1]) / 65535.f, static_cast<float>(data[i][2]) / 65535.f, 1.f));
+                                        }
+
+                                        break;
+                                    }
+
+                                    case TINYGLTF_COMPONENT_TYPE_FLOAT:
+                                    {
+                                        std::vector<glm::vec3> data(accessor.count);
+                                        mesh->colors.reserve(mesh->colors.size() + accessor.count);
+                                        memcpy(data.data(), buffer.data.data() + accessor.byteOffset + buffer_view.byteOffset, buffer_view.byteLength);
+                                        for (u32 i = 0; i < accessor.count; ++i)
+                                        {
+                                            mesh->colors.push_back(glm::vec4(data[i], 1.f));
+                                        }
+
+                                        break;
+                                    }
+
+                                    default:
+                                        break;
+                                }
+
+                                break;
+                            }
+
+                            case TINYGLTF_TYPE_VEC4:
+                            {
+                                switch (accessor.componentType)
+                                {
+                                    case TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE:
+                                    {
+                                        std::vector<glm::u8vec4> data(accessor.count);
+                                        mesh->colors.reserve(mesh->colors.size() + accessor.count);
+                                        memcpy(data.data(), buffer.data.data() + accessor.byteOffset + buffer_view.byteOffset, buffer_view.byteLength);
+                                        for (u32 i = 0; i < accessor.count; ++i)
+                                        {
+                                            mesh->colors.push_back(glm::vec4(static_cast<float>(data[i][0]) / 255.f, static_cast<float>(data[i][1]) / 255.f, static_cast<float>(data[i][2]) / 255.f, static_cast<float>(data[i][3]) / 255.f));
+                                        }
+
+                                        break;
+                                    }
+
+                                    case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT:
+                                    {
+                                        std::vector<glm::u16vec4> data(accessor.count);
+                                        mesh->colors.reserve(mesh->colors.size() + accessor.count);
+                                        memcpy(data.data(), buffer.data.data() + accessor.byteOffset + buffer_view.byteOffset, buffer_view.byteLength);
+                                        for (u32 i = 0; i < accessor.count; ++i)
+                                        {
+                                            mesh->colors.push_back(glm::vec4(static_cast<float>(data[i][0]) / 65535.f, static_cast<float>(data[i][1]) / 65535.f, static_cast<float>(data[i][2]) / 65535.f, static_cast<float>(data[i][3]) / 65535.f));
+                                        }
+
+                                        break;
+                                    }
+
+                                    case TINYGLTF_COMPONENT_TYPE_FLOAT:
+                                    {
+                                        std::vector<glm::vec4> data(accessor.count);
+                                        memcpy(data.data(), buffer.data.data() + accessor.byteOffset + buffer_view.byteOffset, buffer_view.byteLength);
+                                        mesh->colors.insert(mesh->colors.end(), data.begin(), data.end());
+                                        break;
+                                    }
+
+                                    default:
+                                        break;
+                                }
+
+                                break;
+                            }
+
+                            default:
+                                break;
+                        }
+                    }
+
+                    if (model.meshes[tinygltf_node.mesh].primitives[sub_mesh_index].attributes.count("JOINTS_0") != 0)
+                    {
+                        auto& accessor = model.meshes[tinygltf_node.mesh].primitives[sub_mesh_index].attributes["JOINTS_0"]];
+                        auto& buffer_view = model.bufferViews[accessor.bufferView];
+                        auto& buffer = model.buffers[buffer_view.buffer];
+                        switch (accessor.componentType)
+                        {
+                            case TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE:
+                            {
+                                std::vector<glm::u8vec4> data(accessor.count);
+                                mesh->joints.reserve(mesh->joints.size() + accessor.count);
+                                memcpy(data.data(), buffer.data.data() + accessor.byteOffset + buffer_view.byteOffset, buffer_view.byteLength);
+                                for (u32 i = 0; i < accessor.count; ++i)
+                                {
+                                    mesh->joints.push_back(glm::u16vec4(data[i]));
+                                }
+
+                                break;
+                            }
+
+                            case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT:
+                            {
+                                std::vector<glm::u16vec4> data(accessor.count);
+                                mesh->joints.insert(mesh->joints.begin(), data.begin(), data.end());
+                                memcpy(data.data(), buffer.data.data() + accessor.byteOffset + buffer_view.byteOffset, buffer_view.byteLength);
+                                break;
+                            }
+
+                            default:
+                                break;
+                        }
+                    }
+
+                    if (model.meshes[tinygltf_node.mesh].primitives[sub_mesh_index].attributes.count("WEIGHTS_0") != 0)
+                    {
+                        auto& accessor = model.accessors[model.meshes[tinygltf_node.mesh].primitives[sub_mesh_index].attributes["WEIGHTS_0"]];
+                        auto& buffer_view = model.bufferViews[accessor.bufferView];
+                        auto& buffer = model.buffers[buffer_view.buffer];
+                        switch  (accessor.componentType)
+                        {
+                            case TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE:
+                            {
+                                std::vector<glm::u8vec2> data(accessor.count);
+                                mesh->weights.reserve(mesh->weights.size() + accessor.count);
+                                memcpy(data.data(), buffer.data.data() + accessor.byteOffset + buffer_view.byteOffset, buffer_view.byteLength);
+                                for (u32 i = 0; i < accessor.count; ++i)
+                                {
+                                    mesh->weights.push_back(glm::vec4(static_cast<float>(data[i][0]) / 255.f, static_cast<float>(data[i][1]) / 255.f, static_cast<float>(data[i][2]) / 255.f, static_cast<float>(data[i][3]) / 255.f));
+                                }
+
+                                break;
+                            }
+
+                            case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT:
+                            {
+                                std::vector<glm::u16vec2> data(accessor.count);
+                                mesh->weights.reserve(mesh->weights.size() + accessor.count);
+                                memcpy(data.data(), buffer.data.data() + accessor.byteOffset + buffer_view.byteOffset, buffer_view.byteLength);
+                                for (u32 i = 0; i < accessor.count; ++i)
+                                {
+                                    mesh->weights.push_back(glm::vec4(static_cast<float>(data[i][0]) / 65535.f, static_cast<float>(data[i][1]) / 65535.f, static_cast<float>(data[i][2]) / 65535.f, static_cast<float>(data[i][3]) / 65535.f));
+                                }
+
+                                break;
+                            }
+
+                            case TINYGLTF_COMPONENT_TYPE_FLOAT:
+                            {
+                                std::vector<glm::vec4> data(accessor.count);
+                                memcpy(data.data(), buffer.data.data() + accessor.byteOffset + buffer_view.byteOffset, buffer_view.byteLength);
+                                mesh->weights.insert(mesh->weights.begin(), data.begin(), data.end());
+                                break;
+                            }
+
+                            default:
+                                break;
+                        }
+                    }
+
+                    if (model.meshes[tinygltf_node.mesh].primitives[sub_mesh_index].indices != -1)
+                    {
+                        auto& accessor = model.meshes[tinygltf_node.mesh].primitives[sub_mesh_index].indices;
+                        auto& buffer_view = model.bufferViews[accessor.bufferView];
+                        auto& buffer = model.buffers[buffer_view.buffer];
+                        switch (accessor.componentType)
+                        {
+                            case TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE:
+                            {
+                                std::vector<u8> data(accessor.count);
+                                mesh->indices.reserve(mesh->indices.size() + accessor.count);
+                                memcpy(data.data(), buffer.data.data() + accessor.byteOffset + buffer_view.byteOffset, buffer_view.byteLength);
+                                for (u32 i = 0; i < accessor.count; ++i)
+                                {
+                                    mesh->indices.push_back(data[i]);
+                                }
+
+                                break;
+                            }
+
+                            case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT:
+                            {
+                                std::vector<u16> data(accessor.count);
+                                mesh->indices.reserve(mesh->indices.size() + accessor.count);
+                                memcpy(data.data(), buffer.data.data() + accessor.byteOffset + buffer_view.byteOffset, buffer_view.byteLength);
+                                for (u32 i = 0; i < accessor.count; ++i)
+                                {
+                                    mesh->indices.push_back(data[i]);
+                                }
+
+                                break;
+                            }
+
+                            case TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT:
+                            {
+                                std::vector<u32> data(accessor.count);
+                                memcpy(data.data(), buffer.data.data() + accessor.byteOffset + buffer_view.byteOffset, buffer_view.byteLength);
+                                mesh->indices.insert(indices.begin(), data.begin(), data.end());
+                                break;
+                            }
+
+                            default:
+                                break;
+                        }
+
+                        mesh->sub_meshes[sub_mesh_index].index_count = accessor.count;
+                    }
+                }
+
+                Mesh_Manager::get_instance()->add_resource(mesh->name, mesh);
+            }
+
+            node.children.resize(tinygltf_node.children.size());
+            for (u32 child_index = 0; child_index < node.children.size(); ++child_index)
+            {
+                set_node(node.children[child_index], model.nodes[tinygltf_node.children[child_index]], &node);
+            }
+        }
+
+        Scene_Manager::get_instance()->scenes[scene_index].root_nodes.resize(model.scenes[scene_index].nodes.size());
+        for (u32 root_node_index = 0; root_node_index < Scene_Manager::get_instance()->scenes[scene_index].root_nodes.size(); ++root_node_index)
+        {
+            set_node(Scene_Manager::get_instance()->scenes[scene_index].root_nodes[root_node_index], model.nodes[model.scenes[scene_index].nodes[root_node_index]], nullptr);
+        }
+    }
+
 }

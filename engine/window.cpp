@@ -80,10 +80,10 @@ void Window::pump_messages()
 }
 
 
-void create_swapchain()
+void Window::create_swapchain()
 {
     VkSurfaceCapabilitiesKHR surface_capabilities;
-    VK_CHECK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physical_device, surface, &surface_capabilities));
+    VK_CHECK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device->physical_device, surface, &surface_capabilities));
     width = glm::clamp(width, surface_capabilities.minImageExtent.width, surface_capabilities.maxImageExtent.width);
     height = glm::clamp(height, surface_capabilities.minImageExtent.height, surface_capabilities.maxImageExtent.height);
 

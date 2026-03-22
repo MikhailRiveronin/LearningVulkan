@@ -2,7 +2,7 @@
 
 #include "Application.h"
 #include "Logger.h"
-#include "SampleBase.h"
+#include "sample.h"
 
 #include <memory>
 #include <stdexcept>

@@ -9,12 +9,21 @@
 class Texture : public Resource
 {
 public:
-    VkImage handle;
-    VkImageView image_view;
-    VkSampler sampler;
-    VmaAllocation allocation;
+    std::string name;
+    u32 width;
+    u32 height;
+    u32 channel_count;
+    std::vector<unsigned char> data;
 
-    Texture(Texture_Manager* creator, VkFormat format, VkExtent3D extent, VkImageUsageFlags usage);
+
+
+
+    // VkImage handle;
+    // VkImageView image_view;
+    // VkSampler sampler;
+    // VmaAllocation allocation;
+
+    // Texture(Texture_Manager* creator, VkFormat format, VkExtent3D extent, VkImageUsageFlags usage);
 
 
 

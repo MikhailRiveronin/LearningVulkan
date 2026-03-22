@@ -85,10 +85,10 @@ void RenderLayerMesh::createRenderPass(Context const& globals)
 
 void RenderLayerMesh::createFramebuffers(Context const& globals)
 {
-    framebuffers.resize(globals.swapchain.imageViews.size());
+    framebuffers.resize(globals.swapchain.image_views.size());
     for (u32 i = 0; i < framebuffers.size(); ++i) {
         std::vector<VkImageView> attachments(2);
-        attachments[0] = globals.swapchain.imageViews[i];
+        attachments[0] = globals.swapchain.image_views[i];
         attachments[1] = globals.swapchain.depthStencilBuffer.view;
         auto createInfo = Initializer::framebufferCreateInfo(renderPass, attachments, globals.swapchain.extent);
         VK_CHECK(
@@ -154,7 +154,7 @@ void RenderLayerMesh::createPipelines(Context const& globals, std::vector<Pipeli
             &colorBlendState,
             &dynamicState,
             pipelines[i].layout,
-            globals.renderPass);
+            globals.render_pass);
         VK_CHECK(
             vkCreateGraphicsPipelines(globals.device.handle, VK_NULL_HANDLE, 1, &createInfos[i], globals.allocator, &pipelines[i].handle),
             __FILE__, __LINE__,

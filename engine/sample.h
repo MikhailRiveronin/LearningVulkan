@@ -1,6 +1,10 @@
 #pragma once
 
-#include "Defines.h"
+#include "defines.h"
+
+#include "scene_manager.h"
+
+
 #include "Camera.h"
 #include "DebugMessenger.h"
 #include "Device.h"
@@ -14,14 +18,14 @@
 #include <backends/imgui_impl_win32.h>
 #include <backends/imgui_impl_vulkan.h>
 
-class SampleBase : public Listener {
+class Sample : public Listener {
 public:
     u32 width;
     u32 height;
     std::string name;
 
     bool framebufferResized;
-    SampleBase(u32 width, u32 height, std::string const& name);
+    Sample(u32 width, u32 height, std::string const& name);
 
     void onInit(HINSTANCE hInstance, HWND hWnd);
     void onUpdate();
@@ -29,8 +33,15 @@ public:
     void onNotify(EventType type, EventContext context) override;
 
 protected:
-    Context globals;
+    Scene_Manager scene_manager;
+
+
+
+    Context context;
     Image depthBuffer;
+
+
+
 
 private:
     DebugMessenger debugMessenger;

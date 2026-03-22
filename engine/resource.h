@@ -9,7 +9,7 @@ class Resource
 {
 public:
 
-Resource(Resource_Manager* creator);
+Resource();
 
 
 protected:

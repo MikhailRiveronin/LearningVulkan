@@ -155,24 +155,154 @@ VkSamplerCreateInfo Vulkan_Struct_Initializers::sampler_create_info()
     return create_info;
 }
 
-VkFramebufferCreateInfo Vulkan_Struct_Initializers::framebufferCreateInfo(
-    VkRenderPass renderPass,
-    std::vector<VkImageView> const& attachments,
-    VkExtent2D const& extent,
-    u32 layers)
+VkFramebufferCreateInfo Vulkan_Struct_Initializers::framebuffer_create_info(VkRenderPass render_pass, std::vector<VkImageView> const& attachments, VkExtent2D const& extent)
 {
-    VkFramebufferCreateInfo createInfo = {};
-    createInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-    createInfo.pNext = nullptr;
-    createInfo.flags = 0;
-    createInfo.renderPass = renderPass;
-    createInfo.attachmentCount = attachments.size();
-    createInfo.pAttachments = attachments.data();
-    createInfo.width = extent.width;
-    createInfo.height = extent.height;
-    createInfo.layers = layers;
-    return createInfo;
+    VkFramebufferCreateInfo create_info = {};
+    create_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+    create_info.pNext = nullptr;
+    create_info.flags = 0;
+    create_info.renderPass = render_pass;
+    create_info.attachmentCount = attachments.size();
+    create_info.pAttachments = attachments.data();
+    create_info.width = extent.width;
+    create_info.height = extent.height;
+    create_info.layers = 1;
+    return create_info;
 }
+
+VkAttachmentDescription Vulkan_Struct_Initializers::attachment_description(VkFormat format, VkAttachmentLoadOp load_op, VkAttachmentStoreOp store_op, VkImageLayout initial_layout, VkImageLayout final_layout)
+{
+    VkAttachmentDescription description = {};
+    description.flags = 0;
+    description.format = format;
+    description.samples = VK_SAMPLE_COUNT_1_BIT;
+    description.loadOp = load_op;
+    description.storeOp = store_op;
+    description.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    description.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    description.initialLayout = initial_layout;
+    description.finalLayout = final_layout;
+    return description;
+}
+
+VkAttachmentReference Vulkan_Struct_Initializers::attachment_reference(u32 attachment, VkImageLayout layout)
+{
+    VkAttachmentReference reference = {};
+    reference.attachment = attachment;
+    reference.layout = layout;
+    return reference;
+}
+
+VkSubpassDescription Vulkan_Struct_Initializers::subpass_description(std::vector<VkAttachmentReference> const& color_attachments, VkAttachmentReference const* depth_stencil_attachment, std::vector<VkAttachmentReference> const& input_attachments)
+{
+    VkSubpassDescription description = {};
+    description.flags = 0;
+    description.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    description.inputAttachmentCount = input_attachments.size();
+    description.pInputAttachments = input_attachments.data();
+    description.colorAttachmentCount = color_attachments.size();
+    description.pColorAttachments = color_attachments.data();
+    description.pResolveAttachments = nullptr;
+    description.pDepthStencilAttachment = nullptr;
+    description.preserveAttachmentCount = 0;
+    description.pPreserveAttachments = nullptr;
+    return description;
+}
+
+VkSubpassDependency Vulkan_Struct_Initializers::subpass_dependency(u32 src_subpass, u32 dst_subpass, VkPipelineStageFlags src_stage_mask, VkPipelineStageFlags dst_stage_mask, VkAccessFlags src_access_mask, VkAccessFlags dst_access_mask)
+{
+    VkSubpassDependency dependency = {};
+    dependency.srcSubpass = src_subpass;
+    dependency.dstSubpass = dst_subpass;
+    dependency.srcStageMask = src_stage_mask;
+    dependency.dstStageMask = dst_stage_mask;
+    dependency.srcAccessMask = src_access_mask;
+    dependency.dstAccessMask = dst_access_mask;
+    dependency.dependencyFlags = 0;
+    return dependency;
+}
+
+VkRenderPassCreateInfo Vulkan_Struct_Initializers::render_pass_create_info(std::vector<VkAttachmentDescription> const& attachments, std::vector<VkSubpassDescription> const& subpasses, std::vector<VkSubpassDependency> const& dependencies)
+{
+    VkRenderPassCreateInfo create_info = {};
+    create_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+    create_info.pNext = nullptr;
+    create_info.flags = 0;
+    create_info.attachmentCount = attachments.size();
+    create_info.pAttachments = attachments.data();
+    create_info.subpassCount = subpasses.size();
+    create_info.pSubpasses = subpasses.data();
+    create_info.dependencyCount = dependencies.size();
+    create_info.pDependencies = dependencies.data();
+    return create_info;
+}
+
+VkCommandBufferBeginInfo Vulkan_Struct_Initializers::command_buffer_begin_info()
+{
+    VkCommandBufferBeginInfo begin_info = {};
+    begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    begin_info.pNext = nullptr;
+    begin_info.flags = 0;
+    begin_info.pInheritanceInfo = nullptr;
+    return begin_info;
+}
+
+VkViewport Vulkan_Struct_Initializers::viewport(VkExtent2D extent)
+{
+    VkViewport viewport = {};
+    viewport.x = 0;
+    viewport.y = 0;
+    viewport.width = static_cast<float>(extent.width);
+    viewport.height = static_cast<float>(extent.height);
+    viewport.minDepth = 0.f;
+    viewport.maxDepth = 1.f;
+    return viewport;
+}
+
+VkRect2D Vulkan_Struct_Initializers::scissor(VkExtent2D extent)
+{
+    VkRect2D scissor = {};
+    scissor.offset = { 0, 0 };
+    scissor.extent = extent;
+    return scissor;
+}
+
+VkSubmitInfo Vulkan_Struct_Initializers::submit_info(VkSemaphore const* wait_semaphore, VkPipelineStageFlags const* wait_dst_stage_mask, VkCommandBuffer const* command_buffer, VkSemaphore const* signal_semaphore)
+{
+    VkSubmitInfo submit_info = {};
+    submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submit_info.pNext = nullptr;
+    submit_info.waitSemaphoreCount = 1;
+    submit_info.pWaitSemaphores = wait_semaphore;
+    submit_info.pWaitDstStageMask = wait_dst_stage_mask;
+    submit_info.commandBufferCount = 1;
+    submit_info.pCommandBuffers = command_buffer;
+    submit_info.signalSemaphoreCount = 1;
+    submit_info.pSignalSemaphores = signal_semaphore;
+    return submit_info;
+}
+
+VkPresentInfoKHR Vulkan_Struct_Initializers::present_info(VkSemaphore const* wait_semaphore, VkSwapchainKHR const* swapchain, u32 const* image_index)
+{
+    VkPresentInfoKHR present_info;
+    present_info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+    present_info.pNext = nullptr;
+    present_info.waitSemaphoreCount = 1;
+    present_info.pWaitSemaphores = wait_semaphore;
+    present_info.swapchainCount = 1;
+    present_info.pSwapchains = swapchain;
+    present_info.pImageIndices = image_index;
+    present_info.pResults = nullptr;
+    return present_info;
+}
+
+
+
+
+
+
+
+
 
 VkBufferCreateInfo Vulkan_Struct_Initializers::buffer_create_info(VkDeviceSize size, VkBufferUsageFlags usage)
 {
@@ -188,93 +318,9 @@ VkBufferCreateInfo Vulkan_Struct_Initializers::buffer_create_info(VkDeviceSize s
     return create_info;
 }
 
-VkAttachmentDescription Vulkan_Struct_Initializers::attachmentDescription(
-    VkFormat format,
-    VkAttachmentLoadOp loadOp, VkAttachmentStoreOp storeOp,
-    VkImageLayout initialLayout, VkImageLayout finalLayout,
-    VkAttachmentDescriptionFlags flags,
-    VkSampleCountFlagBits samples,
-    VkAttachmentLoadOp stencilLoadOp,
-    VkAttachmentStoreOp stencilStoreOp)
-{
-    VkAttachmentDescription description = {};
-    description.flags = flags;
-    description.format = format;
-    description.samples = samples;
-    description.loadOp = loadOp;
-    description.storeOp = storeOp;
-    description.stencilLoadOp = stencilLoadOp;
-    description.stencilStoreOp = stencilStoreOp;
-    description.initialLayout = initialLayout;
-    description.finalLayout = finalLayout;
-    return description;
-}
 
-VkAttachmentReference Vulkan_Struct_Initializers::attachmentReference(u32 attachment, VkImageLayout layout)
-{
-    VkAttachmentReference reference = {};
-    reference.attachment = 0;
-    reference.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-    return reference;
-}
 
-VkSubpassDescription Vulkan_Struct_Initializers::subpassDescription(
-    std::vector<VkAttachmentReference> const& colorAttachments,
-    VkAttachmentReference const* depthStencilAttachment,
-    VkSubpassDescriptionFlags flags,
-    VkPipelineBindPoint pipelineBindPoint,
-    std::vector<VkAttachmentReference> const& inputAttachments,
-    std::vector<VkAttachmentReference> const& resolveAttachments,
-    std::vector<u32> const& preserveAttachments)
-{
-    VkSubpassDescription description = {};
-    description.flags = flags;
-    description.pipelineBindPoint = pipelineBindPoint;
-    description.inputAttachmentCount = inputAttachments.size();
-    description.pInputAttachments = inputAttachments.data();
-    description.colorAttachmentCount = colorAttachments.size();
-    description.pColorAttachments = colorAttachments.data();
-    description.pResolveAttachments = resolveAttachments.data();
-    description.pDepthStencilAttachment = depthStencilAttachment;
-    description.preserveAttachmentCount = preserveAttachments.size();
-    description.pPreserveAttachments = preserveAttachments.data();
-    return description;
-}
 
-VkSubpassDependency Vulkan_Struct_Initializers::subpassDependency(
-    u32 srcSubpass, u32 dstSubpass,
-    VkPipelineStageFlags srcStageMask, VkPipelineStageFlags dstStageMask,
-    VkAccessFlags srcAccessMask, VkAccessFlags dstAccessMask,
-    VkDependencyFlags dependencyFlags)
-{
-    VkSubpassDependency dependency = {};
-    dependency.srcSubpass = srcSubpass;
-    dependency.dstSubpass = dstSubpass;
-    dependency.srcStageMask = srcStageMask;
-    dependency.dstStageMask = dstStageMask;
-    dependency.srcAccessMask = srcAccessMask;
-    dependency.dstAccessMask = dstAccessMask;
-    dependency.dependencyFlags = dependencyFlags;
-    return dependency;
-}
-
-VkRenderPassCreateInfo Vulkan_Struct_Initializers::renderPassCreateInfo(
-    std::vector<VkAttachmentDescription> const& attachments,
-    std::vector<VkSubpassDescription> const& subpasses,
-    std::vector<VkSubpassDependency> const& dependencies)
-{
-    VkRenderPassCreateInfo createInfo = {};
-    createInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-    createInfo.pNext = nullptr;
-    createInfo.flags = 0;
-    createInfo.attachmentCount = attachments.size();
-    createInfo.pAttachments = attachments.data();
-    createInfo.subpassCount = subpasses.size();
-    createInfo.pSubpasses = subpasses.data();
-    createInfo.dependencyCount = dependencies.size();
-    createInfo.pDependencies = dependencies.data();
-    return createInfo;
-}
 
 
 
@@ -308,25 +354,7 @@ VkVertexInputAttributeDescription Vulkan_Struct_Initializers::vertexInputAttribu
     return description;
 }
 
-VkViewport Vulkan_Struct_Initializers::viewport(VkExtent2D extent)
-{
-    VkViewport viewport = {};
-    viewport.x = 0;
-    viewport.y = 0;
-    viewport.width = static_cast<float>(extent.width);
-    viewport.height = static_cast<float>(extent.height);
-    viewport.minDepth = 0.f;
-    viewport.maxDepth = 1.f;
-    return viewport;
-}
 
-VkRect2D Vulkan_Struct_Initializers::scissor(VkExtent2D extent)
-{
-    VkRect2D scissor = {};
-    scissor.offset = { 0, 0 };
-    scissor.extent = extent;
-    return scissor;
-}
 
 VkDescriptorSetLayoutBinding Vulkan_Struct_Initializers::descriptorSetLayoutBinding(
     u32 binding,
@@ -689,15 +717,7 @@ VkGraphicsPipelineCreateInfo Vulkan_Struct_Initializers::graphicsPipelineCreateI
     return createInfo;
 }
 
-VkCommandBufferBeginInfo Vulkan_Struct_Initializers::commandBufferBeginInfo()
-{
-    VkCommandBufferBeginInfo beginInfo = {};
-    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    beginInfo.pNext = nullptr;
-    beginInfo.flags = 0;
-    beginInfo.pInheritanceInfo = nullptr;
-    return beginInfo;
-}
+
 
 VkRenderPassBeginInfo Vulkan_Struct_Initializers::renderPassBeginInfo(
     VkRenderPass renderPass,

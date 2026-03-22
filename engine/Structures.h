@@ -2,21 +2,27 @@
 
 #include "defines.h"
 
-#include <glm/glm.hpp>
-#include <vulkan/vulkan.h>
-#include <optional>
-#include <vector>
+#include "device.h"
+#include "resource_manager.h"
 
-enum class PhysicalDeviceType {
-    DISCRETE,
-    INTEGRATED,
-    SOFTWARE
-};
+// #include <glm/glm.hpp>
+// #include <vulkan/vulkan.h>
+// #include <optional>
+// #include <vector>
 
-struct ContextConfig {
-    bool enableValidation = true;
-    PhysicalDeviceType physicalDeviceType = PhysicalDeviceType::DISCRETE;
-};
+
+
+
+// enum class PhysicalDeviceType {
+//     DISCRETE,
+//     INTEGRATED,
+//     SOFTWARE
+// };
+
+// struct ContextConfig {
+//     bool enableValidation = true;
+//     PhysicalDeviceType physicalDeviceType = PhysicalDeviceType::DISCRETE;
+// };
 
 struct Buffer {
     VkBuffer handle = VK_NULL_HANDLE;
@@ -30,7 +36,8 @@ struct Buffer {
     bool locked;
 };
 
-struct Image {
+struct Image
+{
     VkImage handle = VK_NULL_HANDLE;
     VkDeviceMemory memory = VK_NULL_HANDLE;
     VkImageCreateFlags flags = 0;
@@ -65,6 +72,40 @@ struct Image {
     } sampler;
 
     VkAttachmentLoadOp loadOp;
+
+
+    VmaAllocation allocation;
+};
+
+struct Attachment
+{
+    VkImage handle = VK_NULL_HANDLE;
+    VkImageCreateFlags flags = 0;
+    VkImageType imageType = VK_IMAGE_TYPE_2D;
+    VkFormat format = VK_FORMAT_R8G8B8A8_SRGB;
+    u32 width = 0;
+    u32 height = 0;
+    u32 mipLevels = 1;
+    u32 arrayLayers = 1;
+    VkSampleCountFlagBits samples = VK_SAMPLE_COUNT_1_BIT;
+    VkImageTiling tiling = VK_IMAGE_TILING_OPTIMAL;
+    VkImageUsageFlags usage = 0;
+    VkSharingMode sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    u32 queueFamilyIndexCount = 0;
+    u32* queueFamilyIndices = nullptr;
+    VkImageLayout initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    VkMemoryPropertyFlags memoryProperties = 0;
+
+    struct {
+        VkImageView handle = VK_NULL_HANDLE;
+        VkImageViewType viewType = VK_IMAGE_VIEW_TYPE_2D;
+        VkImageAspectFlags aspect_mask = VK_IMAGE_ASPECT_COLOR_BIT;
+    } view;
+
+    VkAttachmentLoadOp loadOp;
+
+
+    VmaAllocation allocation;
 };
 
 struct ShaderStage {
@@ -80,86 +121,93 @@ struct Texture {
 };
 
 
-// struct Context {
-//     VkAllocationCallbacks* allocator;
+struct Context
+{
+    Device* device;
 
-// #ifdef _DEBUG
-//     VkDebugUtilsMessengerCreateInfoEXT debugMessengerCreateInfo = {};
-// #endif
-//     VkInstance instance = VK_NULL_HANDLE;
-//     VkSurfaceKHR surface = VK_NULL_HANDLE;
+    Resource_Manager resource_manager;
 
-//     struct {
-//         VkDevice handle = VK_NULL_HANDLE;
 
-//         struct {
-//             VkPhysicalDeviceProperties properties;
-//             VkPhysicalDeviceFeatures features;
-//             VkPhysicalDeviceMemoryProperties memoryProperties;
-//         } support;
 
-//         struct {
-//             struct {
-//                 VkQueue handle = VK_NULL_HANDLE;
-//                 u32 familyIndex;
-//             } graphics;
+    VkAllocationCallbacks* allocator;
+
+#ifdef _DEBUG
+    VkDebugUtilsMessengerCreateInfoEXT debugMessengerCreateInfo = {};
+#endif
+    VkInstance instance = VK_NULL_HANDLE;
+    VkSurfaceKHR surface = VK_NULL_HANDLE;
+
+    // struct {
+    //     VkDevice handle = VK_NULL_HANDLE;
+
+    //     struct {
+    //         VkPhysicalDeviceProperties properties;
+    //         VkPhysicalDeviceFeatures features;
+    //         VkPhysicalDeviceMemoryProperties memoryProperties;
+    //     } support;
+
+    //     struct {
+    //         struct {
+    //             VkQueue handle = VK_NULL_HANDLE;
+    //             u32 familyIndex;
+    //         } graphics;
             
-//             struct {
-//                 VkQueue handle = VK_NULL_HANDLE;
-//                 u32 familyIndex;
-//             } compute;
+    //         struct {
+    //             VkQueue handle = VK_NULL_HANDLE;
+    //             u32 familyIndex;
+    //         } compute;
             
-//             struct {
-//                 VkQueue handle = VK_NULL_HANDLE;
-//                 u32 familyIndex;
-//             } transfer;
+    //         struct {
+    //             VkQueue handle = VK_NULL_HANDLE;
+    //             u32 familyIndex;
+    //         } transfer;
             
-//             struct {
-//                 VkQueue handle = VK_NULL_HANDLE;
-//                 u32 familyIndex;
-//             } present;
-//         } queues;
-//     } 
-//     device;
+    //         struct {
+    //             VkQueue handle = VK_NULL_HANDLE;
+    //             u32 familyIndex;
+    //         } present;
+    //     } queues;
+    // } 
+    // device;
 
-//     struct {
-//         VkSwapchainKHR handle = VK_NULL_HANDLE;
+    struct {
+        VkSwapchainKHR handle = VK_NULL_HANDLE;
 
-//         struct {
-//             VkSurfaceCapabilitiesKHR capabilities = {};
-//             std::vector<VkSurfaceFormatKHR> formats;
-//             std::vector<VkPresentModeKHR> presentModes;
-//         } support;
+        struct {
+            VkSurfaceCapabilitiesKHR capabilities = {};
+            std::vector<VkSurfaceFormatKHR> formats;
+            std::vector<VkPresentModeKHR> presentModes;
+        } support;
 
-//         VkExtent2D extent = {};
-//         VkSurfaceFormatKHR format = {};
-//         VkPresentModeKHR presentMode = VK_PRESENT_MODE_FIFO_KHR;
+        VkExtent2D extent = {};
+        VkSurfaceFormatKHR format = {};
+        VkPresentModeKHR presentMode = VK_PRESENT_MODE_FIFO_KHR;
 
-//         std::vector<VkImage> images;
-//         std::vector<VkImageView> imageViews;
-//         std::vector<VkFramebuffer> framebuffers;
+        std::vector<VkImage> images;
+        std::vector<VkImageView> image_views;
+        std::vector<VkFramebuffer> framebuffers;
 
-//         Image depthStencilBuffer;
-//     } swapchain;
+        Image depthStencilBuffer;
+    } swapchain;
 
-//     VkRenderPass renderPass;
+    VkRenderPass render_pass;
 
-//     struct {
-//         VkCommandPool pool;
-//         std::vector<VkCommandBuffer> buffers;
-//     } graphicsCommandBuffer;
+    struct {
+        VkCommandPool pool;
+        std::vector<VkCommandBuffer> buffers;
+    } graphicsCommandBuffer;
 
-//     struct {
-//         struct {
-//             std::vector<VkSemaphore> imageAcquired;
-//             std::vector<VkSemaphore> renderFinished;
-//         } semaphores;
+    struct {
+        struct {
+            std::vector<VkSemaphore> imageAcquired;
+            std::vector<VkSemaphore> renderFinished;
+        } semaphores;
 
-//         struct {
-//             std::vector<VkFence> previousFrameFinished;
-//         } fences;
-//     } synchronization;
-// };
+        struct {
+            std::vector<VkFence> previousFrameFinished;
+        } fences;
+    } synchronization;
+};
 
 struct Mesh {
     struct DrawArgs {

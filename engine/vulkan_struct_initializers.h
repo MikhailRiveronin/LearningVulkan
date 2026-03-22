@@ -21,8 +21,18 @@ public:
     static VkImageCreateInfo image_create_info(VkFormat format, u32 width, u32 height, VkImageUsageFlags usage);
     static VkImageViewCreateInfo image_view_create_info(VkImage image, VkFormat format);
     static VkSamplerCreateInfo sampler_create_info();
-    static VkFramebufferCreateInfo framebufferCreateInfo(VkRenderPass renderPass, std::vector<VkImageView> const& attachments, VkExtent2D const& extent, u32 layers = 1);
+    static VkFramebufferCreateInfo framebuffer_create_info(VkRenderPass render_pass, std::vector<VkImageView> const& attachments, VkExtent2D const& extent);
+    static VkAttachmentDescription attachment_description(VkFormat format, VkAttachmentLoadOp load_op, VkAttachmentStoreOp store_op, VkImageLayout initial_layout, VkImageLayout final_layout);
+    static VkAttachmentReference attachment_reference(u32 attachment, VkImageLayout layout);
+    static VkSubpassDescription subpass_description(std::vector<VkAttachmentReference> const& color_attachments, VkAttachmentReference const* depth_stencil_attachment, std::vector<VkAttachmentReference> const& input_attachments = std::vector<VkAttachmentReference>());
+    static VkSubpassDependency subpass_dependency(u32 src_subpass, u32 dst_subpass, VkPipelineStageFlags src_stage_mask, VkPipelineStageFlags dst_stage_mask, VkAccessFlags src_access_mask, VkAccessFlags dst_access_mask);
+    static VkRenderPassCreateInfo render_pass_create_info(std::vector<VkAttachmentDescription> const& attachments, std::vector<VkSubpassDescription> const& subpasses, std::vector<VkSubpassDependency> const& dependencies);
 
+    static VkCommandBufferBeginInfo command_buffer_begin_info();
+    static VkViewport viewport(VkExtent2D extent);
+    static VkRect2D scissor(VkExtent2D extent);
+    static VkSubmitInfo submit_info(VkSemaphore const* wait_semaphore, VkPipelineStageFlags const* wait_dst_stage_mask, VkCommandBuffer const* command_buffer, VkSemaphore const* signal_semaphore);
+    static VkPresentInfoKHR present_info(VkSemaphore const* wait_semaphore, VkSwapchainKHR const* swapchain, u32 const* image_index);
 
 
 
@@ -37,32 +47,6 @@ public:
 
     static VkBufferCreateInfo buffer_create_info(VkDeviceSize size, VkBufferUsageFlags usage);
 
-    static VkAttachmentDescription attachmentDescription(
-        VkFormat format,
-        VkAttachmentLoadOp loadOp, VkAttachmentStoreOp storeOp,
-        VkImageLayout initialLayout, VkImageLayout finalLayout,
-        VkAttachmentDescriptionFlags flags = 0,
-        VkSampleCountFlagBits samples = VK_SAMPLE_COUNT_1_BIT,
-        VkAttachmentLoadOp stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
-        VkAttachmentStoreOp stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE);
-    static VkAttachmentReference attachmentReference(u32 attachment, VkImageLayout layout);
-    static VkSubpassDescription subpassDescription(
-        std::vector<VkAttachmentReference> const& colorAttachments,
-        VkAttachmentReference const* depthStencilAttachment,
-        VkSubpassDescriptionFlags flags = 0,
-        VkPipelineBindPoint pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
-        std::vector<VkAttachmentReference> const& inputAttachments = std::vector<VkAttachmentReference>(),
-        std::vector<VkAttachmentReference> const& resolveAttachments = std::vector<VkAttachmentReference>(),
-        std::vector<u32> const& preserveAttachments = std::vector<u32>());
-    static VkSubpassDependency subpassDependency(
-        u32 srcSubpass, u32 dstSubpass,
-        VkPipelineStageFlags srcStageMask, VkPipelineStageFlags dstStageMask,
-        VkAccessFlags srcAccessMask, VkAccessFlags dstAccessMask,
-        VkDependencyFlags dependencyFlags = 0);
-    static VkRenderPassCreateInfo renderPassCreateInfo(
-        std::vector<VkAttachmentDescription> const& attachments,
-        std::vector<VkSubpassDescription> const& subpasses,
-        std::vector<VkSubpassDependency> const& dependencies);
 
     
 
@@ -72,8 +56,6 @@ public:
     static VkVertexInputBindingDescription vertexInputBindingDescription(u32 binding, u32 stride, VkVertexInputRate inputRate = VK_VERTEX_INPUT_RATE_VERTEX);
     static VkVertexInputAttributeDescription vertexInputAttributeDescription(u32 location, u32 binding, VkFormat format, u32 offset);
 
-    static VkViewport viewport(VkExtent2D extent);
-    static VkRect2D scissor(VkExtent2D extent);
 
     static VkDescriptorSetLayoutBinding descriptorSetLayoutBinding(u32 binding, VkDescriptorType descriptorType, VkShaderStageFlags stageFlags);
     static VkDescriptorPoolSize descriptorPoolSize(VkDescriptorType type, u32 descriptorCount);
@@ -161,7 +143,7 @@ public:
         VkPipeline basePipelineHandle = VK_NULL_HANDLE,
         i32 basePipelineIndex = 0);
 
-    static VkCommandBufferBeginInfo commandBufferBeginInfo();
+    
     static VkRenderPassBeginInfo renderPassBeginInfo(
         VkRenderPass renderPass,
         VkFramebuffer framebuffer,

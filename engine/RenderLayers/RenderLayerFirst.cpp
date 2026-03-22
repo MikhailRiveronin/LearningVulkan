@@ -57,10 +57,10 @@ void RenderLayerFirst::createRenderPass(Context const& context)
 
 void RenderLayerFirst::createFramebuffers(Context const& context)
 {
-    framebuffers.resize(context.swapchain.imageViews.size());
+    framebuffers.resize(context.swapchain.image_views.size());
     for (u32 i = 0; i < framebuffers.size(); ++i) {
         std::vector<VkImageView> attachments(2);
-        attachments[0] = context.swapchain.imageViews[i];
+        attachments[0] = context.swapchain.image_views[i];
         attachments[1] = context.swapchain.depthStencilBuffer.view.handle;
         auto createInfo = Initializer::framebufferCreateInfo(renderPass, attachments, context.swapchain.extent);
         VK_CHECK(

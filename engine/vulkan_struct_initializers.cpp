@@ -1,5 +1,7 @@
 #include "vulkan_struct_initializers.h"
 
+#include "utils.h"
+
 VkDebugUtilsMessengerCreateInfoEXT Vulkan_Struct_Initializers::debug_utils_messenger_create_info(PFN_vkDebugUtilsMessengerCallbackEXT user_callback)
 {
     VkDebugUtilsMessengerCreateInfoEXT create_info;
@@ -84,6 +86,20 @@ VkSwapchainCreateInfoKHR Vulkan_Struct_Initializers::swapchain_create_info(VkSur
     create_info.presentMode = present_mode;
     create_info.clipped = VK_TRUE;
     create_info.oldSwapchain = VK_NULL_HANDLE;
+    return create_info;
+}
+
+VkBufferCreateInfo Vulkan_Struct_Initializers::buffer_create_info(VkDeviceSize size, VkBufferUsageFlags usage)
+{
+    VkBufferCreateInfo create_info = {};
+    create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    create_info.pNext = nullptr;
+    create_info.flags = 0;
+    create_info.size = size;
+    create_info.usage = usage;
+    create_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    create_info.queueFamilyIndexCount = 0;
+    create_info.pQueueFamilyIndices = nullptr;
     return create_info;
 }
 
@@ -247,25 +263,7 @@ VkCommandBufferBeginInfo Vulkan_Struct_Initializers::command_buffer_begin_info()
     return begin_info;
 }
 
-VkViewport Vulkan_Struct_Initializers::viewport(VkExtent2D extent)
-{
-    VkViewport viewport = {};
-    viewport.x = 0;
-    viewport.y = 0;
-    viewport.width = static_cast<float>(extent.width);
-    viewport.height = static_cast<float>(extent.height);
-    viewport.minDepth = 0.f;
-    viewport.maxDepth = 1.f;
-    return viewport;
-}
 
-VkRect2D Vulkan_Struct_Initializers::scissor(VkExtent2D extent)
-{
-    VkRect2D scissor = {};
-    scissor.offset = { 0, 0 };
-    scissor.extent = extent;
-    return scissor;
-}
 
 VkSubmitInfo Vulkan_Struct_Initializers::submit_info(VkSemaphore const* wait_semaphore, VkPipelineStageFlags const* wait_dst_stage_mask, VkCommandBuffer const* command_buffer, VkSemaphore const* signal_semaphore)
 {
@@ -296,55 +294,105 @@ VkPresentInfoKHR Vulkan_Struct_Initializers::present_info(VkSemaphore const* wai
     return present_info;
 }
 
-
-
-
-
-
-
-
-
-VkBufferCreateInfo Vulkan_Struct_Initializers::buffer_create_info(VkDeviceSize size, VkBufferUsageFlags usage)
+VkImageMemoryBarrier Vulkan_Struct_Initializers::image_memory_barrier(VkAccessFlags src_access_mask, VkAccessFlags dst_access_mask, VkImageLayout old_layout, VkImageLayout new_layout, VkImage image)
 {
-    VkBufferCreateInfo create_info = {};
-    create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    VkImageMemoryBarrier barrier = {};
+    barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    barrier.pNext = nullptr;
+    barrier.srcAccessMask = src_access_mask;
+    barrier.dstAccessMask = dst_access_mask;
+    barrier.oldLayout = old_layout;
+    barrier.newLayout = new_layout;
+    barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.image = image;
+    barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    barrier.subresourceRange.baseMipLevel = 0;
+    barrier.subresourceRange.levelCount = 1;
+    barrier.subresourceRange.baseArrayLayer = 0;
+    barrier.subresourceRange.layerCount = 1;
+    return barrier;
+}
+
+VkBufferImageCopy Vulkan_Struct_Initializers::buffer_image_copy(u32 width, u32 height)
+{
+    VkBufferImageCopy copy = {};
+    copy.bufferOffset = 0;
+    copy.bufferRowLength = 0;
+    copy.bufferImageHeight = 0;
+    copy.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    copy.imageSubresource.mipLevel = 0;
+    copy.imageSubresource.baseArrayLayer = 0;
+    copy.imageSubresource.layerCount = 1;
+    copy.imageOffset.x = 0;
+    copy.imageOffset.y = 0;
+    copy.imageOffset.z = 0;
+    copy.imageExtent.width = width;
+    copy.imageExtent.height = height;
+    copy.imageExtent.depth = 1;
+    return copy;
+}
+
+VkMemoryAllocateInfo Vulkan_Struct_Initializers::memory_allocate_info(VkDeviceSize allocation_size, u32 memory_type_index)
+{
+    VkMemoryAllocateInfo allocate_info = {};
+    allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    allocate_info.pNext = nullptr;
+    allocate_info.allocationSize = allocation_size;
+    allocate_info.memoryTypeIndex = memory_type_index;
+    return allocate_info;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+VkShaderModuleCreateInfo Vulkan_Struct_Initializers::shader_module_create_info(std::vector<char> const& code)
+{
+    VkShaderModuleCreateInfo create_info = {};
+    create_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
     create_info.pNext = nullptr;
     create_info.flags = 0;
-    create_info.size = size;
-    create_info.usage = usage;
-    create_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-    create_info.queueFamilyIndexCount = 0;
-    create_info.pQueueFamilyIndices = nullptr;
+    create_info.codeSize = code.size();
+    create_info.pCode = reinterpret_cast<u32*>(code.data());
     return create_info;
 }
 
-
-
-
-
-
-
-VkShaderModuleCreateInfo Vulkan_Struct_Initializers::shaderModuleCreateInfo(std::vector<u32> const& code)
+VkPipelineShaderStageCreateInfo Vulkan_Struct_Initializers::pipeline_shader_stage_create_info(VkShaderStageFlagBits stage, VkShaderModule module)
 {
-    VkShaderModuleCreateInfo createInfo = {};
-    createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-    createInfo.pNext = nullptr;
-    createInfo.flags = 0;
-    createInfo.codeSize = code.size() * sizeof(code[0]);
-    createInfo.pCode = code.data();
-    return createInfo;
+    VkPipelineShaderStageCreateInfo create_info = {};
+    create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    create_info.pNext = nullptr;
+    create_info.flags = 0;
+    create_info.stage = stage;
+    create_info.module = module;
+    create_info.pName = "main";
+    create_info.pSpecializationInfo = nullptr;
+    return create_info;
 }
 
-VkVertexInputBindingDescription Vulkan_Struct_Initializers::vertexInputBindingDescription(u32 binding, u32 stride, VkVertexInputRate inputRate)
+VkVertexInputBindingDescription Vulkan_Struct_Initializers::vertex_input_binding_description(u32 binding, u32 stride)
 {
     VkVertexInputBindingDescription description = {};
     description.binding = binding;
     description.stride = stride;
-    description.inputRate = inputRate;
+    description.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
     return description;
 }
 
-VkVertexInputAttributeDescription Vulkan_Struct_Initializers::vertexInputAttributeDescription(u32 location, u32 binding, VkFormat format, u32 offset)
+VkVertexInputAttributeDescription Vulkan_Struct_Initializers::vertex_input_attribute_description(u32 location, u32 binding, VkFormat format, u32 offset)
 {
     VkVertexInputAttributeDescription description = {};
     description.location = location;
@@ -354,61 +402,266 @@ VkVertexInputAttributeDescription Vulkan_Struct_Initializers::vertexInputAttribu
     return description;
 }
 
-
-
-VkDescriptorSetLayoutBinding Vulkan_Struct_Initializers::descriptorSetLayoutBinding(
-    u32 binding,
-    VkDescriptorType descriptorType,
-    VkShaderStageFlags stageFlags)
+VkPipelineVertexInputStateCreateInfo Vulkan_Struct_Initializers::pipeline_vertex_input_state_create_info(std::vector<VkVertexInputBindingDescription> const& vertex_binding_descriptions, std::vector<VkVertexInputAttributeDescription> const& vertex_attribute_descriptions)
 {
-    VkDescriptorSetLayoutBinding layoutBinding = {};
-    layoutBinding.binding = binding;
-    layoutBinding.descriptorType = descriptorType;
-    layoutBinding.descriptorCount = 1;
-    layoutBinding.stageFlags = stageFlags;
-    layoutBinding.pImmutableSamplers = nullptr;
-    return layoutBinding;
+    VkPipelineVertexInputStateCreateInfo create_info = {};
+    create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+    create_info.pNext = nullptr;
+    create_info.flags = 0;
+    create_info.vertexBindingDescriptionCount = vertex_binding_descriptions.size();
+    create_info.pVertexBindingDescriptions = vertex_binding_descriptions.data();
+    create_info.vertexAttributeDescriptionCount = vertex_attribute_descriptions.size();
+    create_info.pVertexAttributeDescriptions = vertex_attribute_descriptions.data();
+    return create_info;
 }
 
-VkDescriptorPoolSize Vulkan_Struct_Initializers::descriptorPoolSize(VkDescriptorType type, u32 descriptorCount)
+VkPipelineInputAssemblyStateCreateInfo Vulkan_Struct_Initializers::pipeline_input_assembly_state_create_info(VkPrimitiveTopology topology)
 {
-    VkDescriptorPoolSize poolSize = {};
-    poolSize.type = type;
-    poolSize.descriptorCount = descriptorCount;
-    return poolSize;
+    VkPipelineInputAssemblyStateCreateInfo create_info = {};
+    create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+    create_info.pNext = nullptr;
+    create_info.flags = 0;
+    create_info.topology = topology;
+    create_info.primitiveRestartEnable = VK_FALSE;
+    return create_info;
 }
 
-VkDescriptorPoolCreateInfo Vulkan_Struct_Initializers::descriptorPoolCreateInfo(u32 maxSets, std::vector<VkDescriptorPoolSize> const& poolSizes)
+VkPipelineTessellationStateCreateInfo Vulkan_Struct_Initializers::pipeline_tessellation_state_create_info()
 {
-    VkDescriptorPoolCreateInfo createInfo = {};
-    createInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-    createInfo.pNext = nullptr;
-    createInfo.flags = 0;
-    createInfo.maxSets = maxSets;
-    createInfo.poolSizeCount = poolSizes.size();
-    createInfo.pPoolSizes = poolSizes.data();
-    return createInfo;
+    VkPipelineTessellationStateCreateInfo create_info = {};
+    create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_TESSELLATION_STATE_CREATE_INFO;
+    create_info.pNext = nullptr;
+    create_info.flags = 0;
+    create_info.patchControlPoints = 0;
+    return create_info;
+}
+
+VkViewport Vulkan_Struct_Initializers::viewport(float width, float height)
+{
+    VkViewport viewport = {};
+    viewport.x = 0;
+    viewport.y = 0;
+    viewport.width = width;
+    viewport.height = height;
+    viewport.minDepth = 0.f;
+    viewport.maxDepth = 1.f;
+    return viewport;
+}
+
+VkRect2D Vulkan_Struct_Initializers::scissor(u32 width, u32 height)
+{
+    VkRect2D scissor = {};
+    scissor.offset = { 0, 0 };
+    scissor.extent.width = width;
+    scissor.extent.height = height;
+    return scissor;
+}
+
+VkPipelineViewportStateCreateInfo Vulkan_Struct_Initializers::pipeline_viewport_state_create_info(std::vector<VkViewport> const& viewports, std::vector<VkRect2D> const& scissors)
+{
+    VkPipelineViewportStateCreateInfo create_info = {};
+    create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+    create_info.pNext = nullptr;
+    create_info.flags = 0;
+    create_info.viewportCount = viewports.size();
+    create_info.pViewports = viewports.data();
+    create_info.scissorCount = scissors.size();
+    create_info.pScissors = scissors.data();
+    return create_info;
+}
+
+VkPipelineRasterizationStateCreateInfo Vulkan_Struct_Initializers::pipeline_rasterization_state_create_info(VkBool32 depth_clamp_enable, VkBool32 rasterizer_discard_enable, VkPolygonMode polygon_mode, VkCullModeFlags cull_mode, VkFrontFace front_face, VkBool32 depth_bias_enable, float depth_bias_constant_factor, float depth_bias_clamp, float depth_bias_slope_factor, float line_width)
+{
+    VkPipelineRasterizationStateCreateInfo create_info = {};
+    create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+    create_info.pNext = nullptr;
+    create_info.flags = 0;
+    create_info.depthClampEnable = depth_clamp_enable;
+    create_info.rasterizerDiscardEnable = rasterizer_discard_enable;
+    create_info.polygonMode = polygon_mode;
+    create_info.cullMode = cull_mode;
+    create_info.frontFace = front_face;
+    create_info.depthBiasEnable = depth_bias_enable;
+    create_info.depthBiasConstantFactor = depth_bias_constant_factor;
+    create_info.depthBiasClamp = depth_bias_clamp;
+    create_info.depthBiasSlopeFactor = depth_bias_slope_factor;
+    create_info.lineWidth = line_width;
+    return create_info;
+}
+
+VkPipelineMultisampleStateCreateInfo Vulkan_Struct_Initializers::pipeline_multisample_state_create_info(VkSampleCountFlagBits rasterization_samples, VkBool32 sample_shading_enable, float min_sample_shading, VkSampleMask const* sample_mask, VkBool32 alpha_to_coverage_enable, VkBool32 alpha_to_one_enable)
+{
+    VkPipelineMultisampleStateCreateInfo create_info = {};
+    create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+    create_info.pNext = nullptr;
+    create_info.flags = 0;
+    create_info.rasterizationSamples = rasterization_samples;
+    create_info.sampleShadingEnable = sample_shading_enable;
+    create_info.minSampleShading = min_sample_shading;
+    create_info.pSampleMask = sample_mask;
+    create_info.alphaToCoverageEnable = alpha_to_coverage_enable;
+    create_info.alphaToOneEnable = alpha_to_one_enable;
+    return create_info;
+}
+
+VkPipelineDepthStencilStateCreateInfo Vulkan_Struct_Initializers::pipeline_depth_stencil_state_create_info(VkBool32 depth_test_enable, VkBool32 depth_write_enable, VkCompareOp depth_compare_op, VkBool32 depth_bounds_test_enable, VkBool32 stencil_test_enable, VkStencilOpState front, VkStencilOpState back)
+{
+    VkPipelineDepthStencilStateCreateInfo create_info = {};
+    create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+    create_info.pNext = nullptr;
+    create_info.flags = 0;
+    create_info.depthTestEnable = depth_test_enable;
+    create_info.depthWriteEnable = depth_write_enable;
+    create_info.depthCompareOp = depth_compare_op;
+    create_info.depthBoundsTestEnable = depth_bounds_test_enable;
+    create_info.stencilTestEnable = stencil_test_enable;
+    create_info.front = front;
+    create_info.back = back;
+    create_info.minDepthBounds = 0.f;
+    create_info.maxDepthBounds = 1.f;
+    return create_info;
+}
+
+VkPipelineColorBlendAttachmentState Vulkan_Struct_Initializers::pipeline_color_blend_attachment_state(VkBool32 blend_enable, VkBlendFactor src_color_blend_factor, VkBlendFactor dst_color_blend_factor, VkBlendOp color_blend_op, VkBlendFactor src_alpha_blend_factor, VkBlendFactor dst_alpha_blend_factor, VkBlendOp alpha_blend_op, VkColorComponentFlags color_write_mask)
+{
+    VkPipelineColorBlendAttachmentState color_blend_attachment = {};
+    color_blend_attachment.blendEnable = blend_enable;
+    color_blend_attachment.srcColorBlendFactor = src_color_blend_factor;
+    color_blend_attachment.dstColorBlendFactor = dst_color_blend_factor;
+    color_blend_attachment.colorBlendOp = color_blend_op;
+    color_blend_attachment.srcAlphaBlendFactor = src_alpha_blend_factor;
+    color_blend_attachment.dstAlphaBlendFactor = dst_alpha_blend_factor;
+    color_blend_attachment.alphaBlendOp = alpha_blend_op;
+    color_blend_attachment.colorWriteMask = color_write_mask;
+    return color_blend_attachment;
+}
+
+VkPipelineColorBlendStateCreateInfo Vulkan_Struct_Initializers::pipeline_color_blend_state_create_info(std::vector<VkPipelineColorBlendAttachmentState> const& color_blend_attachments)
+{
+    VkPipelineColorBlendStateCreateInfo create_info = {};
+    create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+    create_info.pNext = nullptr;
+    create_info.flags = 0;
+    create_info.logicOpEnable = VK_FALSE;
+    create_info.logicOp = VK_LOGIC_OP_CLEAR;
+    create_info.attachmentCount = color_blend_attachments.size();
+    create_info.pAttachments = color_blend_attachments.data();
+    create_info.blendConstants[0] = { 0.f };
+    create_info.blendConstants[1] = { 0.f };
+    create_info.blendConstants[2] = { 0.f };
+    create_info.blendConstants[3] = { 0.f };
+    return create_info;
+}
+
+VkPipelineDynamicStateCreateInfo Vulkan_Struct_Initializers::pipeline_dynamic_state_create_info(std::vector<VkDynamicState> const& dynamic_states)
+{
+    VkPipelineDynamicStateCreateInfo create_info = {};
+    create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+    create_info.pNext = nullptr;
+    create_info.flags = 0;
+    create_info.dynamicStateCount = dynamic_states.size();
+    create_info.pDynamicStates = dynamic_states.data();
+    return create_info;
+}
+
+VkPipelineLayoutCreateInfo Vulkan_Struct_Initializers::pipeline_layout_create_info(std::vector<VkDescriptorSetLayout> const& set_layouts)
+{
+    VkPipelineLayoutCreateInfo create_info = {};
+    create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    create_info.pNext = nullptr;
+    create_info.flags = 0;
+    create_info.setLayoutCount = set_layouts.size();
+    create_info.pSetLayouts = set_layouts.data();
+    create_info.pushConstantRangeCount = 0;
+    create_info.pPushConstantRanges = nullptr;
+    return create_info;
+}
+
+VkGraphicsPipelineCreateInfo Vulkan_Struct_Initializers::graphics_pipeline_create_info(std::vector<VkPipelineShaderStageCreateInfo> const& stages, VkPipelineInputAssemblyStateCreateInfo const* input_assembly_state, VkPipelineTessellationStateCreateInfo const* tessellation_state, VkPipelineViewportStateCreateInfo const* viewport_state, VkPipelineRasterizationStateCreateInfo const* rasterization_state, VkPipelineMultisampleStateCreateInfo const* multisample_state, VkPipelineDepthStencilStateCreateInfo const* depth_stencil_state, VkPipelineColorBlendStateCreateInfo const* color_blend_state, VkPipelineDynamicStateCreateInfo const* dynamic_state, VkPipelineLayout layout, VkRenderPass render_pass, u32 subpass, VkPipeline base_pipeline_handle, i32 base_pipeline_index)
+{
+    VkGraphicsPipelineCreateInfo create_info = {};
+    create_info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+    create_info.pNext = nullptr;
+    create_info.flags = 0;
+    create_info.stageCount = stages.size();
+    create_info.pStages = stages.data();
+    create_info.pVertexInputState = nullptr;
+    create_info.pInputAssemblyState = input_assembly_state;
+    create_info.pTessellationState = tessellation_state;
+    create_info.pViewportState = viewport_state;
+    create_info.pRasterizationState = rasterization_state;
+    create_info.pMultisampleState = multisample_state;
+    create_info.pDepthStencilState = depth_stencil_state;
+    create_info.pColorBlendState = color_blend_state;
+    create_info.pDynamicState = dynamic_state;
+    create_info.layout = layout;
+    create_info.renderPass = render_pass;
+    create_info.subpass = subpass;
+    create_info.basePipelineHandle = base_pipeline_handle;
+    create_info.basePipelineIndex = base_pipeline_index;
+    return create_info;
+}
+
+
+
+
+
+
+
+
+
+
+
+VkDescriptorSetLayoutBinding Vulkan_Struct_Initializers::descriptor_set_layout_binding(u32 binding, VkDescriptorType descriptor_type, VkShaderStageFlags stage_flags)
+{
+    VkDescriptorSetLayoutBinding layout_binding = {};
+    layout_binding.binding = binding;
+    layout_binding.descriptorType = descriptor_type;
+    layout_binding.descriptorCount = 1;
+    layout_binding.stageFlags = stage_flags;
+    layout_binding.pImmutableSamplers = nullptr;
+    return layout_binding;
+}
+
+VkDescriptorPoolSize Vulkan_Struct_Initializers::descriptor_pool_size(VkDescriptorType type, u32 descriptor_count)
+{
+    VkDescriptorPoolSize pool_size = {};
+    pool_size.type = type;
+    pool_size.descriptorCount = descriptor_count;
+    return pool_size;
+}
+
+VkDescriptorPoolCreateInfo Vulkan_Struct_Initializers::descriptor_pool_create_info(u32 max_sets, std::vector<VkDescriptorPoolSize> const& pool_sizes)
+{
+    VkDescriptorPoolCreateInfo create_info = {};
+    create_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    create_info.pNext = nullptr;
+    create_info.flags = 0;
+    create_info.maxSets = max_sets;
+    create_info.poolSizeCount = pool_sizes.size();
+    create_info.pPoolSizes = pool_sizes.data();
+    return create_info;
 }
 
 VkDescriptorSetLayoutBindingFlagsCreateInfo Vulkan_Struct_Initializers::descriptorSetLayoutBindingFlagsCreateInfo(std::vector<VkDescriptorBindingFlags> const& bindingFlags)
 {
-    VkDescriptorSetLayoutBindingFlagsCreateInfo createInfo = {};
-    createInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO;
-    createInfo.pNext = nullptr;
-    createInfo.bindingCount = bindingFlags.size();
-    createInfo.pBindingFlags = bindingFlags.data();
-    return createInfo;
+    VkDescriptorSetLayoutBindingFlagsCreateInfo create_info = {};
+    create_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO;
+    create_info.pNext = nullptr;
+    create_info.bindingCount = bindingFlags.size();
+    create_info.pBindingFlags = bindingFlags.data();
+    return create_info;
 }
 
-VkDescriptorSetLayoutCreateInfo Vulkan_Struct_Initializers::descriptorSetLayoutCreateInfo(std::vector<VkDescriptorSetLayoutBinding> const& bindings, void const* next)
+VkDescriptorSetLayoutCreateInfo Vulkan_Struct_Initializers::descriptor_set_layout_create_info(std::vector<VkDescriptorSetLayoutBinding> const& bindings, void const* next)
 {
-    VkDescriptorSetLayoutCreateInfo createInfo = {};
-    createInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    createInfo.pNext = next;
-    createInfo.flags = 0;
-    createInfo.bindingCount = bindings.size();
-    createInfo.pBindings = bindings.data();
-    return createInfo;
+    VkDescriptorSetLayoutCreateInfo create_info = {};
+    create_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    create_info.pNext = next;
+    create_info.flags = 0;
+    create_info.bindingCount = bindings.size();
+    create_info.pBindings = bindings.data();
+    return create_info;
 }
 
 VkDescriptorSetVariableDescriptorCountAllocateInfo Vulkan_Struct_Initializers::descriptorSetVariableDescriptorCountAllocateInfo(std::vector<u32> const& descriptorCounts)
@@ -421,301 +674,91 @@ VkDescriptorSetVariableDescriptorCountAllocateInfo Vulkan_Struct_Initializers::d
     return allocateInfo;
 }
 
-VkDescriptorSetAllocateInfo Vulkan_Struct_Initializers::descriptorSetAllocateInfo(
-    VkDescriptorPool descriptorPool,
-    u32 descriptorSetCount,
-    std::vector<VkDescriptorSetLayout> const& setLayouts,
-    void const* next)
+VkDescriptorSetAllocateInfo Vulkan_Struct_Initializers::descriptor_set_allocate_info(VkDescriptorPool descriptor_pool, std::vector<VkDescriptorSetLayout> const& set_layouts, void const* next)
 {
-    VkDescriptorSetAllocateInfo allocateInfo = {};
-    allocateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-    allocateInfo.pNext = next;
-    allocateInfo.descriptorPool = descriptorPool;
-    allocateInfo.descriptorSetCount = descriptorSetCount;
-    allocateInfo.pSetLayouts = setLayouts.data();
-    return allocateInfo;
+    VkDescriptorSetAllocateInfo allocate_info = {};
+    allocate_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    allocate_info.pNext = next;
+    allocate_info.descriptorPool = descriptor_pool;
+    allocate_info.descriptorSetCount = set_layouts.size();
+    allocate_info.pSetLayouts = set_layouts.data();
+    return allocate_info;
 }
 
-VkDescriptorBufferInfo Vulkan_Struct_Initializers::descriptorBufferInfo(VkBuffer buffer, VkDeviceSize offset, VkDeviceSize range)
+VkDescriptorBufferInfo Vulkan_Struct_Initializers::descriptor_buffer_info(VkBuffer buffer, VkDeviceSize offset, VkDeviceSize range)
 {
-    VkDescriptorBufferInfo bufferInfo = {};
-    bufferInfo.buffer = buffer;
-    bufferInfo.offset = offset;
-    bufferInfo.range = range;
-    return bufferInfo;
+    VkDescriptorBufferInfo buffer_info = {};
+    buffer_info.buffer = buffer;
+    buffer_info.offset = offset;
+    buffer_info.range = range;
+    return buffer_info;
 }
 
-VkDescriptorImageInfo Vulkan_Struct_Initializers::descriptorImageInfo(VkSampler sampler, VkImageView imageView, VkImageLayout imageLayout)
+VkDescriptorImageInfo Vulkan_Struct_Initializers::descriptor_image_info(VkSampler sampler, VkImageView image_view, VkImageLayout image_layout)
 {
-    VkDescriptorImageInfo imageInfo = {};
-    imageInfo.sampler = sampler;
-    imageInfo.imageView = imageView;
-    imageInfo.imageLayout = imageLayout;
-    return imageInfo;
+    VkDescriptorImageInfo image_info = {};
+    image_info.sampler = sampler;
+    image_info.imageView = image_view;
+    image_info.imageLayout = image_layout;
+    return image_info;
 }
 
-VkWriteDescriptorSet Vulkan_Struct_Initializers::writeDescriptorSet(
-    VkDescriptorSet dstSet,
-    u32 dstBinding,
-    VkDescriptorType descriptorType,
-    VkDescriptorImageInfo const* imageInfo,
-    VkDescriptorBufferInfo const* bufferInfo)
+VkWriteDescriptorSet Vulkan_Struct_Initializers::write_descriptor_set(VkDescriptorSet dst_set, u32 dst_binding, std::vector<VkDescriptorBufferInfo> buffer_infos)
 {
-    VkWriteDescriptorSet descriptorWrite = {};
-    descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    descriptorWrite.pNext = nullptr;
-    descriptorWrite.dstSet = dstSet;
-    descriptorWrite.dstBinding = dstBinding;
-    descriptorWrite.dstArrayElement = 0;
-    descriptorWrite.descriptorCount = 1;
-    descriptorWrite.descriptorType = descriptorType;
-    descriptorWrite.pImageInfo = imageInfo;
-    descriptorWrite.pBufferInfo = bufferInfo;
-    descriptorWrite.pTexelBufferView = nullptr;
-    return descriptorWrite;
+    VkWriteDescriptorSet descriptor_write = {};
+    descriptor_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptor_write.pNext = nullptr;
+    descriptor_write.dstSet = dst_set;
+    descriptor_write.dstBinding = dst_binding;
+    descriptor_write.dstArrayElement = 0;
+    descriptor_write.descriptorCount = buffer_infos.size();
+    descriptor_write.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    descriptor_write.pImageInfo = nullptr;
+    descriptor_write.pBufferInfo = buffer_infos.data();
+    descriptor_write.pTexelBufferView = nullptr;
+    return descriptor_write;
 }
 
-VkPipelineShaderStageCreateInfo Vulkan_Struct_Initializers::pipelineShaderStageCreateInfo(VkShaderStageFlagBits stage, VkShaderModule module)
+VkWriteDescriptorSet Vulkan_Struct_Initializers::write_descriptor_set(VkDescriptorSet dst_set, u32 dst_binding, std::vector<VkDescriptorImageInfo> image_infos)
 {
-    VkPipelineShaderStageCreateInfo createInfo = {};
-    createInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    createInfo.pNext = nullptr;
-    createInfo.flags = 0;
-    createInfo.stage = stage;
-    createInfo.module = module;
-    createInfo.pName = "main";
-    createInfo.pSpecializationInfo = nullptr;
-    return createInfo;
+    VkWriteDescriptorSet descriptor_write = {};
+    descriptor_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptor_write.pNext = nullptr;
+    descriptor_write.dstSet = dst_set;
+    descriptor_write.dstBinding = dst_binding;
+    descriptor_write.dstArrayElement = 0;
+    descriptor_write.descriptorCount = image_infos.size();
+    descriptor_write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    descriptor_write.pImageInfo = image_infos.data();
+    descriptor_write.pBufferInfo = nullptr;
+    descriptor_write.pTexelBufferView = nullptr;
+    return descriptor_write;
 }
 
-VkPipelineVertexInputStateCreateInfo Vulkan_Struct_Initializers::pipelineVertexInputStateCreateInfo(
-    std::vector<VkVertexInputBindingDescription> const& vertexBindingDescriptions,
-    std::vector<VkVertexInputAttributeDescription> const& vertexAttributeDescriptions)
-{
-    VkPipelineVertexInputStateCreateInfo createInfo = {};
-    createInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-    createInfo.pNext = nullptr;
-    createInfo.flags = 0;
-    createInfo.vertexBindingDescriptionCount = vertexBindingDescriptions.size();
-    createInfo.pVertexBindingDescriptions = vertexBindingDescriptions.data();
-    createInfo.vertexAttributeDescriptionCount = vertexAttributeDescriptions.size();
-    createInfo.pVertexAttributeDescriptions = vertexAttributeDescriptions.data();
-    return createInfo;
-}
 
-VkPipelineInputAssemblyStateCreateInfo Vulkan_Struct_Initializers::pipelineInputAssemblyStateCreateInfo(VkPrimitiveTopology topology, VkBool32 primitiveRestartEnable)
-{
-    VkPipelineInputAssemblyStateCreateInfo createInfo = {};
-    createInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-    createInfo.pNext = nullptr;
-    createInfo.flags = 0;
-    createInfo.topology = topology;
-    createInfo.primitiveRestartEnable = primitiveRestartEnable;
-    return createInfo;
-}
 
-VkPipelineTessellationStateCreateInfo Vulkan_Struct_Initializers::pipelineTessellationStateCreateInfo()
-{
-    VkPipelineTessellationStateCreateInfo createInfo = {};
-    createInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_TESSELLATION_STATE_CREATE_INFO;
-    createInfo.pNext = nullptr;
-    createInfo.flags = 0;
-    createInfo.patchControlPoints = 0;
-    return createInfo;
-}
 
-VkPipelineViewportStateCreateInfo Vulkan_Struct_Initializers::pipelineViewportStateCreateInfo(std::vector<VkViewport> const& viewports, std::vector<VkRect2D> const& scissors)
-{
-    VkPipelineViewportStateCreateInfo createInfo = {};
-    createInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
-    createInfo.pNext = nullptr;
-    createInfo.flags = 0;
-    createInfo.viewportCount = viewports.size();
-    createInfo.pViewports = viewports.data();
-    createInfo.scissorCount = scissors.size();
-    createInfo.pScissors = scissors.data();
-    return createInfo;
-}
 
-VkPipelineRasterizationStateCreateInfo Vulkan_Struct_Initializers::pipelineRasterizationStateCreateInfo(
-    VkBool32 depthClampEnable,
-    VkBool32 rasterizerDiscardEnable,
-    VkPolygonMode polygonMode,
-    VkCullModeFlags cullMode,
-    VkFrontFace frontFace,
-    VkBool32 depthBiasEnable,
-    float depthBiasConstantFactor,
-    float depthBiasClamp,
-    float depthBiasSlopeFactor,
-    float lineWidth)
-{
-    VkPipelineRasterizationStateCreateInfo createInfo = {};
-    createInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
-    createInfo.pNext = nullptr;
-    createInfo.flags = 0;
-    createInfo.depthClampEnable = depthClampEnable;
-    createInfo.rasterizerDiscardEnable = rasterizerDiscardEnable;
-    createInfo.polygonMode = polygonMode;
-    createInfo.cullMode = cullMode;
-    createInfo.frontFace = frontFace;
-    createInfo.depthBiasEnable = depthBiasEnable;
-    createInfo.depthBiasConstantFactor = depthBiasConstantFactor;
-    createInfo.depthBiasClamp = depthBiasClamp;
-    createInfo.depthBiasSlopeFactor = depthBiasSlopeFactor;
-    createInfo.lineWidth = lineWidth;
-    return createInfo;
-}
 
-VkPipelineMultisampleStateCreateInfo Vulkan_Struct_Initializers::pipelineMultisampleStateCreateInfo(
-    VkSampleCountFlagBits rasterizationSamples,
-    VkBool32 sampleShadingEnable,
-    float minSampleShading,
-    VkSampleMask const* sampleMask,
-    VkBool32 alphaToCoverageEnable,
-    VkBool32 alphaToOneEnable)
-{
-    VkPipelineMultisampleStateCreateInfo createInfo = {};
-    createInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-    createInfo.pNext = nullptr;
-    createInfo.flags = 0;
-    createInfo.rasterizationSamples = rasterizationSamples;
-    createInfo.sampleShadingEnable = sampleShadingEnable;
-    createInfo.minSampleShading = minSampleShading;
-    createInfo.pSampleMask = sampleMask;
-    createInfo.alphaToCoverageEnable = alphaToCoverageEnable;
-    createInfo.alphaToOneEnable = alphaToOneEnable;
-    return createInfo;
-}
 
-VkPipelineDepthStencilStateCreateInfo Vulkan_Struct_Initializers::pipelineDepthStencilStateCreateInfo(
-    VkBool32 depthTestEnable,
-    VkBool32 depthWriteEnable,
-    VkCompareOp depthCompareOp,
-    VkBool32 depthBoundsTestEnable,
-    VkBool32 stencilTestEnable,
-    VkStencilOpState front,
-    VkStencilOpState back)
-{
-    VkPipelineDepthStencilStateCreateInfo createInfo = {};
-    createInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
-    createInfo.pNext = nullptr;
-    createInfo.flags = 0;
-    createInfo.depthTestEnable = depthTestEnable;
-    createInfo.depthWriteEnable = depthWriteEnable;
-    createInfo.depthCompareOp = depthCompareOp;
-    createInfo.depthBoundsTestEnable = depthBoundsTestEnable;
-    createInfo.stencilTestEnable = stencilTestEnable;
-    createInfo.front = front;
-    createInfo.back = back;
-    createInfo.minDepthBounds = 0.f;
-    createInfo.maxDepthBounds = 1.f;
-    return createInfo;
-}
 
-VkPipelineColorBlendAttachmentState Vulkan_Struct_Initializers::pipelineColorBlendAttachmentState(
-    VkBool32 blendEnable,
-    VkBlendFactor srcColorBlendFactor,
-    VkBlendFactor dstColorBlendFactor,
-    VkBlendOp colorBlendOp,
-    VkBlendFactor srcAlphaBlendFactor,
-    VkBlendFactor dstAlphaBlendFactor,
-    VkBlendOp alphaBlendOp,
-    VkColorComponentFlags colorWriteMask)
-{
-    VkPipelineColorBlendAttachmentState colorBlendAttachment = {};
-    colorBlendAttachment.blendEnable = blendEnable;
-    colorBlendAttachment.srcColorBlendFactor = srcColorBlendFactor;
-    colorBlendAttachment.dstColorBlendFactor = dstColorBlendFactor;
-    colorBlendAttachment.colorBlendOp = colorBlendOp;
-    colorBlendAttachment.srcAlphaBlendFactor = srcAlphaBlendFactor;
-    colorBlendAttachment.dstAlphaBlendFactor = dstAlphaBlendFactor;
-    colorBlendAttachment.alphaBlendOp = alphaBlendOp;
-    colorBlendAttachment.colorWriteMask = colorWriteMask;
-    return colorBlendAttachment;
-}
 
-VkPipelineColorBlendStateCreateInfo Vulkan_Struct_Initializers::pipelineColorBlendStateCreateInfo(std::vector<VkPipelineColorBlendAttachmentState> const& colorBlendAttachments)
-{
-    VkPipelineColorBlendStateCreateInfo createInfo = {};
-    createInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
-    createInfo.pNext = nullptr;
-    createInfo.flags = 0;
-    createInfo.logicOpEnable = VK_FALSE;
-    createInfo.logicOp = VK_LOGIC_OP_CLEAR;
-    createInfo.attachmentCount = colorBlendAttachments.size();
-    createInfo.pAttachments = colorBlendAttachments.data();
-    createInfo.blendConstants[0] = { 0.f };
-    createInfo.blendConstants[1] = { 0.f };
-    createInfo.blendConstants[2] = { 0.f };
-    createInfo.blendConstants[3] = { 0.f };
-    return createInfo;
-}
 
-VkPipelineDynamicStateCreateInfo Vulkan_Struct_Initializers::pipelineDynamicStateCreateInfo(std::vector<VkDynamicState> const& dynamicStates)
-{
-    VkPipelineDynamicStateCreateInfo createInfo = {};
-    createInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
-    createInfo.pNext = nullptr;
-    createInfo.flags = 0;
-    createInfo.dynamicStateCount = dynamicStates.size();
-    createInfo.pDynamicStates = dynamicStates.data();
-    return createInfo;
-}
 
-VkPipelineLayoutCreateInfo Vulkan_Struct_Initializers::pipelineLayoutCreateInfo(
-    std::vector<VkDescriptorSetLayout> const& setLayouts,
-    std::vector<VkPushConstantRange> const& pushConstantRanges)
-{
-    VkPipelineLayoutCreateInfo createInfo = {};
-    createInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    createInfo.pNext = nullptr;
-    createInfo.flags = 0;
-    createInfo.setLayoutCount = setLayouts.size();
-    createInfo.pSetLayouts = setLayouts.data();
-    createInfo.pushConstantRangeCount = pushConstantRanges.size();
-    createInfo.pPushConstantRanges = pushConstantRanges.data();
-    return createInfo;
-}
 
-VkGraphicsPipelineCreateInfo Vulkan_Struct_Initializers::graphicsPipelineCreateInfo(
-    std::vector<VkPipelineShaderStageCreateInfo> const& stages,
-    VkPipelineVertexInputStateCreateInfo const* vertexInputState,
-    VkPipelineInputAssemblyStateCreateInfo const* inputAssemblyState,
-    VkPipelineTessellationStateCreateInfo const* tessellationState,
-    VkPipelineViewportStateCreateInfo const* viewportState,
-    VkPipelineRasterizationStateCreateInfo const* rasterizationState,
-    VkPipelineMultisampleStateCreateInfo const* multisampleState,
-    VkPipelineDepthStencilStateCreateInfo const* depthStencilState,
-    VkPipelineColorBlendStateCreateInfo const* colorBlendState,
-    VkPipelineDynamicStateCreateInfo const* dynamicState,
-    VkPipelineLayout layout,
-    VkRenderPass renderPass,
-    u32 subpass,
-    VkPipeline basePipelineHandle,
-    i32 basePipelineIndex)
-{
-    VkGraphicsPipelineCreateInfo createInfo = {};
-    createInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-    createInfo.pNext = nullptr;
-    createInfo.flags = 0;
-    createInfo.stageCount = stages.size();
-    createInfo.pStages = stages.data();
-    createInfo.pVertexInputState = vertexInputState;
-    createInfo.pInputAssemblyState = inputAssemblyState;
-    createInfo.pTessellationState = tessellationState;
-    createInfo.pViewportState = viewportState;
-    createInfo.pRasterizationState = rasterizationState;
-    createInfo.pMultisampleState = multisampleState;
-    createInfo.pDepthStencilState = depthStencilState;
-    createInfo.pColorBlendState = colorBlendState;
-    createInfo.pDynamicState = dynamicState;
-    createInfo.layout = layout;
-    createInfo.renderPass = renderPass;
-    createInfo.subpass = subpass;
-    createInfo.basePipelineHandle = basePipelineHandle;
-    createInfo.basePipelineIndex = basePipelineIndex;
-    return createInfo;
-}
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

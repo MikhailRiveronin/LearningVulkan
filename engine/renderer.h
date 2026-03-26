@@ -72,7 +72,7 @@ public:
         } present;
     } queues;
 
-
+    std::vector<Texture> textures;
 
 
 

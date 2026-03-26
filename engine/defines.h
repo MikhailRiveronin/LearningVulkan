@@ -5,6 +5,7 @@
 
 #include <windows.h>
 #include <algorithm>
+#include <array>
 #include <cstdarg>
 #include <cstdint>
 #include <iostream>
@@ -28,7 +29,7 @@ using u64 = uint64_t;
 
 using uc = unsigned char;
 
-constexpr const u32 frames_in_flight = 3;
+#define FRAMES_IN_FLIGHT 3
 
 #define VK_CHECK(expr)                                           \
     do {                                                         \

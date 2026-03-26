@@ -24,45 +24,87 @@
 //     PhysicalDeviceType physicalDeviceType = PhysicalDeviceType::DISCRETE;
 // };
 
-struct Buffer {
+struct Buffer
+{
     VkBuffer handle = VK_NULL_HANDLE;
-    VkDeviceMemory memory = VK_NULL_HANDLE;
-    VkDeviceSize size = 0;
-    VkBufferUsageFlags usage = 0;
-    VkMemoryPropertyFlags memory_properties = 0;
-    i32 memory_index;
-    void* mapped = nullptr;
-    u32 alignment = 0;
-    bool locked;
+    VmaAllocation allocation = VK_NULL_HANDLE;
+    VmaAllocationInfo allocation_info = {};
+    // VkDeviceSize size;
+    // VkBufferUsageFlags usage;
+    // VmaAllocationCreateFlags allocation_create;
+    // VkDeviceMemory memory = VK_NULL_HANDLE;
+    // VkMemoryPropertyFlags memory_properties = 0;
+    // i32 memory_index;
+    // void* mapped = nullptr;
+    // u32 alignment = 0;
+    // bool locked;
+
 };
 
 struct Image
 {
-    VkImage handle = VK_NULL_HANDLE;
-    VkDeviceMemory memory = VK_NULL_HANDLE;
+    VkImage handle;
+    VmaAllocation allocation;
+    VmaAllocationInfo allocation_info;
+
+
+
     VkImageCreateFlags flags = 0;
-    VkImageType imageType = VK_IMAGE_TYPE_2D;
+    VkImageType image_type = VK_IMAGE_TYPE_2D;
     VkFormat format = VK_FORMAT_R8G8B8A8_SRGB;
     u32 width = 0;
     u32 height = 0;
-    u32 mipLevels = 1;
-    u32 arrayLayers = 1;
+    u32 mip_levels = 1;
+    u32 array_layers = 1;
     VkSampleCountFlagBits samples = VK_SAMPLE_COUNT_1_BIT;
     VkImageTiling tiling = VK_IMAGE_TILING_OPTIMAL;
     VkImageUsageFlags usage = 0;
-    VkSharingMode sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-    u32 queueFamilyIndexCount = 0;
-    u32* queueFamilyIndices = nullptr;
-    VkImageLayout initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    VkMemoryPropertyFlags memoryProperties = 0;
+    VkSharingMode sharing_mode = VK_SHARING_MODE_EXCLUSIVE;
+    u32 queue_family_index_count = 0;
+    u32* queue_family_indices = nullptr;
+    VkImageLayout initial_layout = VK_IMAGE_LAYOUT_UNDEFINED;
 
-    struct {
+
+};
+
+struct Texture
+{
+    std::string name;
+
+    Image image;
+
+    // struct
+    // {
+    //     VkImage handle;
+    //     // VkImageCreateFlags flags = 0;
+    //     // VkImageType image_type = VK_IMAGE_TYPE_2D;
+    //     VkFormat format = VK_FORMAT_R8G8B8A8_SRGB;
+    //     u32 width = 0;
+    //     u32 height = 0;
+    //     u32 mip_levels = 1;
+    //     u32 array_layers = 1;
+    //     VkSampleCountFlagBits samples = VK_SAMPLE_COUNT_1_BIT;
+    //     VkImageTiling tiling = VK_IMAGE_TILING_OPTIMAL;
+    //     VkImageUsageFlags usage = 0;
+    //     VkSharingMode sharing_mode = VK_SHARING_MODE_EXCLUSIVE;
+    //     u32 queue_family_index_count = 0;
+    //     u32* queue_family_indices = nullptr;
+    //     VkImageLayout initial_layout = VK_IMAGE_LAYOUT_UNDEFINED;
+
+
+    //     VmaAllocation allocation;
+    //     VmaAllocationInfo allocation_info;
+    // } image;
+
+    struct
+    {
         VkImageView handle = VK_NULL_HANDLE;
-        VkImageViewType viewType = VK_IMAGE_VIEW_TYPE_2D;
-        VkImageAspectFlags aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    } view;
+        VkImageViewType view_type = VK_IMAGE_VIEW_TYPE_2D;
+        VkImageAspectFlags aspect_mask = VK_IMAGE_ASPECT_COLOR_BIT;
+    } image_view;
 
-    struct {
+    struct
+    {
         VkSampler handle = VK_NULL_HANDLE;
         VkFilter magFilter = VK_FILTER_LINEAR;
         VkFilter minFilter = VK_FILTER_LINEAR;
@@ -74,38 +116,52 @@ struct Image
     VkAttachmentLoadOp loadOp;
 
 
-    VmaAllocation allocation;
+
 };
 
 struct Attachment
 {
-    VkImage handle = VK_NULL_HANDLE;
-    VkImageCreateFlags flags = 0;
-    VkImageType imageType = VK_IMAGE_TYPE_2D;
-    VkFormat format = VK_FORMAT_R8G8B8A8_SRGB;
-    u32 width = 0;
-    u32 height = 0;
-    u32 mipLevels = 1;
-    u32 arrayLayers = 1;
-    VkSampleCountFlagBits samples = VK_SAMPLE_COUNT_1_BIT;
-    VkImageTiling tiling = VK_IMAGE_TILING_OPTIMAL;
-    VkImageUsageFlags usage = 0;
-    VkSharingMode sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-    u32 queueFamilyIndexCount = 0;
-    u32* queueFamilyIndices = nullptr;
-    VkImageLayout initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    VkMemoryPropertyFlags memoryProperties = 0;
-
-    struct {
-        VkImageView handle = VK_NULL_HANDLE;
-        VkImageViewType viewType = VK_IMAGE_VIEW_TYPE_2D;
-        VkImageAspectFlags aspect_mask = VK_IMAGE_ASPECT_COLOR_BIT;
-    } view;
-
-    VkAttachmentLoadOp loadOp;
+    VkImage image = VK_NULL_HANDLE;
+    VkImageView image_view = VK_NULL_HANDLE;
+    VkAttachmentDescription description = {};
+    VmaAllocation allocation = VK_NULL_HANDLE;
+    VmaAllocationInfo allocation_info = {};
 
 
-    VmaAllocation allocation;
+
+
+
+
+
+
+
+    // VkImage handle = VK_NULL_HANDLE;
+    // VkImageCreateFlags flags = 0;
+    // VkImageType imageType = VK_IMAGE_TYPE_2D;
+    // VkFormat format = VK_FORMAT_R8G8B8A8_SRGB;
+    // u32 width = 0;
+    // u32 height = 0;
+    // u32 mipLevels = 1;
+    // u32 arrayLayers = 1;
+    // VkSampleCountFlagBits samples = VK_SAMPLE_COUNT_1_BIT;
+    // VkImageTiling tiling = VK_IMAGE_TILING_OPTIMAL;
+    // VkImageUsageFlags usage = 0;
+    // VkSharingMode sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    // u32 queueFamilyIndexCount = 0;
+    // u32* queueFamilyIndices = nullptr;
+    // VkImageLayout initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    // VkMemoryPropertyFlags memoryProperties = 0;
+
+    // struct {
+    //     VkImageView handle = VK_NULL_HANDLE;
+    //     VkImageViewType viewType = VK_IMAGE_VIEW_TYPE_2D;
+    //     VkImageAspectFlags aspect_mask = VK_IMAGE_ASPECT_COLOR_BIT;
+    // } view;
+
+    // VkAttachmentLoadOp loadOp;
+
+
+    // VmaAllocation allocation;
 };
 
 struct ShaderStage {
@@ -115,10 +171,6 @@ struct ShaderStage {
     VkPipelineShaderStageCreateInfo createInfo;
 };
 
-struct Texture {
-    Image image;
-    Sampler sampler;
-};
 
 
 struct Context
@@ -129,7 +181,8 @@ struct Context
 
 
 
-    VkAllocationCallbacks* allocator;
+    VmaAllocator allocator;
+    VkAllocationCallbacks* allocation_callbacks;
 
 #ifdef _DEBUG
     VkDebugUtilsMessengerCreateInfoEXT debugMessengerCreateInfo = {};
@@ -207,6 +260,56 @@ struct Context
             std::vector<VkFence> previousFrameFinished;
         } fences;
     } synchronization;
+
+
+
+    struct
+    {
+        struct Per_Frame_Objects
+        {
+            VkCommandBuffer command_buffer;
+            VkFence in_flight_fence;
+            VkDescriptorSet descriptor_set;
+
+            struct
+            {
+                VkSemaphore ready; // TODO: check if realy needed
+                VkSemaphore finished;
+            } semaphores;
+        };
+
+        std::array<Per_Frame_Objects, FRAMES_IN_FLIGHT> per_frame_objects;
+
+    } graphics;
+
+    struct
+    {
+        VkQueue queue;
+        VkCommandPool command_pool;
+        VkDescriptorSetLayout descriptorSetLayout;
+        VkPipelineLayout pipelineLayout;
+        VkPipeline pipeline;
+
+        struct Per_Frame_Objects
+        {
+            VkCommandBuffer command_buffer;
+            VkFence in_flight_fence;
+            VkDescriptorSet descriptor_set;
+
+            struct
+            {
+                VkSemaphore ready; // TODO: check if realy needed
+                VkSemaphore finished;
+            } semaphores;
+        };
+
+        std::array<Per_Frame_Objects, FRAMES_IN_FLIGHT> per_frame_objects;
+
+    } compute;
+
+
+
+    VkDescriptorPool descriptor_pool = VK_NULL_HANDLE;
 };
 
 struct Mesh {
@@ -307,9 +410,9 @@ struct DescriptorSetBinding {
     VkWriteDescriptorSet descriptorWrite;
 };
 
-struct DescriptorSets {
+struct DescriptorSets
+{
     std::vector<VkDescriptorSet> handles;
-    VkDescriptorPool pool = VK_NULL_HANDLE;
     VkDescriptorSetLayout setLayout = VK_NULL_HANDLE;
 };
 
@@ -321,14 +424,14 @@ struct PipelineCreateInfo {
     std::vector<DescriptorSetBinding> descriptorSetCreateInfos;
 };
 
-struct Pipeline {
-    VkPipeline handle;
-    VkPipelineLayout layout;
+// struct Pipeline {
+//     VkPipeline handle;
+//     VkPipelineLayout layout;
 
-    DescriptorSets descriptorSets; // per-draw data
-    // VkPushConstantRange pushConstantRanges;
-    // std::vector<VkPushConstantRange> pushConstantRanges;
-};
+//     DescriptorSets descriptorSets; // per-draw data
+//     // VkPushConstantRange pushConstantRanges;
+//     // std::vector<VkPushConstantRange> pushConstantRanges;
+// };
 
 struct VertexInputState {
     std::vector<VkVertexInputBindingDescription> vertexBindingDescriptions;

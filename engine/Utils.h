@@ -18,34 +18,35 @@
 //         }                                                             \
 //     } while (0)
 
-void createBuffer(Context const& globals, Buffer& buffer);
-void createImage(Context const& globals, Image& image);
-void create_attachment(Context const& context, Attachment& attachment);
+void create_buffer(Context const& context, VkDeviceSize size, VkBufferUsageFlags usage, VmaAllocationCreateFlags allocation_create_flags, Buffer& buffer);
+void create_staging_buffer(Context const& context, VkDeviceSize size, Buffer& buffer);
+void destroy_buffer(Context const& context, Buffer& buffer);
 
-void destroyBuffer(Context const& globals, Buffer& buffer);
-void destroyImage(Context const& globals, Image const& image);
+void create_image(Context const& context, VkFormat format, u32 width, u32 height, VkImageUsageFlags usage, VmaAllocationCreateFlags allocation_create_flags, Image& image);
+void create_texture(Context const& context, VkFormat format, u32 width, u32 height, void const* data, Texture& texture);
+void create_attachment(Context const& context, Attachment& attachment);
+void destroy_image(Context const& context, Image& image);
 void destroy_attachment(Context const& context, Attachment& attachment);
 
 void copyBuffer(Context const& globals, Buffer& srcBuffer, Buffer& dstBuffer);
-void copyBufferToImage(Context const& globals, Buffer& buffer, Image& image);
+void copy_buffer_to_image(Context const& context, Buffer const& buffer, Image& image);
 VkDeviceSize calculateUniformBufferAlignment(Context const& globals, VkDeviceSize size);
 
-std::vector<char> loadShaderCode(std::string const& filename);
+std::vector<char> load_shader_code(std::string const& filename);
 
 void createImageView(Context const& globals, Image& image);
-void transitionImageLayout(Context const& globals, Image& image, VkImageLayout oldLayout, VkImageLayout newLayout);
+void transition_image_layout(Context const& context, VkImageLayout old_layout, VkImageLayout new_layout, Image& image);
 
 
 u32 findMemoryTypeIndex(Context const& context, VkMemoryRequirements const& requirements, VkMemoryPropertyFlags properties);
 
-VkCommandBuffer beginCommandBufferOneTimeSubmit(Context const& globals);
-void endCommandBufferOneTimeSubmit(Context const& globals, VkCommandBuffer commandBuffer);
+VkCommandBuffer begin_command_buffer_one_time_submit(Context const& globals);
+void end_command_buffer_one_time_submit(Context const& globals, VkCommandBuffer commandBuffer);
 
 void createDescriptorSets(Context const& globals, std::vector<DescriptorSetBinding> const& descriptorSetBindings, DescriptorSets& descriptorSets);
 void destroyDescriptorSets(Context const& globals, DescriptorSets& descriptorSets);
 
-void createPipeline(
-    Context const& globals,
+void create_pipeline(Context const& context,
     std::unordered_map<VkShaderStageFlagBits, std::string> shaderStages,
     VertexInputState const& vertexInputState,
     std::vector<VkDescriptorSetLayout> descriptorSetLayouts,
@@ -53,7 +54,7 @@ void createPipeline(
     std::vector<PipelineCreateInfo> const& pipelineCreateInfos);
 void destroyPipeline(Context const& globals, Pipeline& pipeline);
 
-void createShaderStage(Context const& globals, ShaderStage shaderStage);
+void create_pipeline_shader_stage(Context const& globals, ShaderStage shaderStage);
 
 void createCubeTexture(
     Context const& context,

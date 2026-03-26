@@ -21,7 +21,7 @@ void CommandBufferManager::Init(Context const& context)
         allocateInfo.pNext = nullptr;
         allocateInfo.commandPool = commandPools[poolIndex];
         allocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-        allocateInfo.commandBufferCount = frames_in_flight;
+        allocateInfo.commandBufferCount = FRAMES_IN_FLIGHT;
         VK_CHECK(vkAllocateCommandBuffers(context.device.handle, &allocateInfo, &commandBuffers[i]));
     }
 }

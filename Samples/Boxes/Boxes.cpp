@@ -161,6 +161,11 @@ void Boxes::createTextures()
         stagingBuffer.size = imageSize;
         stagingBuffer.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
         stagingBuffer.memoryProperties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+
+        auto create_info = Vulkan_Struct_Initializers::buffer_create_info(vertex_count * vertex_size, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
+        auto allocation_create_info = Vulkan_Struct_Initializers::allocation_create_info(VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT);
+        VK_CHECK(vmaCreateBuffer(Render_System::get_instance()->context.allocator, &create_info, &allocation_create_info, &handle, &allocation, nullptr));
+        
         createBuffer(globals, stagingBuffer);
         vkMapMemory(globals.device.handle, stagingBuffer.memory, 0, stagingBuffer.size, 0, &stagingBuffer.mapped);
         memcpy(stagingBuffer.mapped, pixels, imageSize);
@@ -401,7 +406,7 @@ void Boxes::createLights()
 
 void Boxes::createFrameResources()
 {
-    frameResources.resize(frames_in_flight);
+    frameResources.resize(FRAMES_IN_FLIGHT);
     for (u32 i = 0; i < frameResources.size(); ++i) {
         {
             frameResources[i].passBuffer.size = sizeof(Pass);
@@ -515,11 +520,11 @@ void Boxes::createResourceDescriptors()
     resourceDescriptors.resize(3);
     {
         std::vector<VkDescriptorPoolSize> poolSizes(4);
-        poolSizes[0] = Initializer::descriptorPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, frames_in_flight);
-        poolSizes[1] = Initializer::descriptorPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, frames_in_flight);
-        poolSizes[2] = Initializer::descriptorPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, frames_in_flight);
-        poolSizes[3] = Initializer::descriptorPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, frames_in_flight);
-        auto descriptorPoolCreateInfo = Initializer::descriptorPoolCreateInfo(frames_in_flight, poolSizes);
+        poolSizes[0] = Initializer::descriptorPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, FRAMES_IN_FLIGHT);
+        poolSizes[1] = Initializer::descriptorPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, FRAMES_IN_FLIGHT);
+        poolSizes[2] = Initializer::descriptorPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, FRAMES_IN_FLIGHT);
+        poolSizes[3] = Initializer::descriptorPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, FRAMES_IN_FLIGHT);
+        auto descriptorPoolCreateInfo = Initializer::descriptorPoolCreateInfo(FRAMES_IN_FLIGHT, poolSizes);
         VK_CHECK(
             vkCreateDescriptorPool(globals.device.handle, &descriptorPoolCreateInfo, globals.allocator, &resourceDescriptors[0].pool),
             __FILE__, __LINE__,
@@ -536,27 +541,34 @@ void Boxes::createResourceDescriptors()
             __FILE__, __LINE__,
             "Failed to create descriptor set layout");
 
-        std::vector<VkDescriptorSetLayout> setLayouts(frames_in_flight, resourceDescriptors[0].setLayout);
-        auto descriptorSetAllocateInfo = Initializer::descriptorSetAllocateInfo(resourceDescriptors[0].pool, frames_in_flight, setLayouts);
-        resourceDescriptors[0].handles.resize(frames_in_flight);
+        std::vector<VkDescriptorSetLayout> setLayouts(FRAMES_IN_FLIGHT, resourceDescriptors[0].setLayout);
+        auto descriptorSetAllocateInfo = Initializer::descriptorSetAllocateInfo(resourceDescriptors[0].pool, FRAMES_IN_FLIGHT, setLayouts);
+        resourceDescriptors[0].handles.resize(FRAMES_IN_FLIGHT);
         VK_CHECK(
             vkAllocateDescriptorSets(globals.device.handle, &descriptorSetAllocateInfo, resourceDescriptors[0].handles.data()),
             __FILE__, __LINE__,
             "Failed to allocate descriptor sets");
 
-        for (u32 i = 0; i < frames_in_flight; ++i) {
+        for (u32 i = 0; i < FRAMES_IN_FLIGHT; ++i)
+        {
             std::vector<VkDescriptorBufferInfo> uniformBufferDescriptors(3);
             uniformBufferDescriptors[0] = Initializer::descriptorBufferInfo(frameResources[i].passBuffer.handle, 0);
             uniformBufferDescriptors[1] = Initializer::descriptorBufferInfo(frameResources[i].dirLightBuffer.handle, 0);
             uniformBufferDescriptors[2] = Initializer::descriptorBufferInfo(frameResources[i].spotLightBuffer.handle, 0);
             std::vector<VkDescriptorBufferInfo> storageBufferDescriptors(1);
             storageBufferDescriptors[0] = Initializer::descriptorBufferInfo(frameResources[i].pointLightBuffer.handle, 0);
+
+
+
+
             std::vector<VkWriteDescriptorSet> descriptorWrites(2);
             descriptorWrites[0] = Initializer::writeDescriptorSet(
                 resourceDescriptors[0].handles[i],
                 0, 0, uniformBufferDescriptors.size(),
                 VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
                 nullptr, uniformBufferDescriptors.data(), nullptr);
+
+
             descriptorWrites[1] = Initializer::writeDescriptorSet(
                 resourceDescriptors[0].handles[i],
                 3, 0, storageBufferDescriptors.size(),
@@ -567,9 +579,9 @@ void Boxes::createResourceDescriptors()
     }
     {
         std::vector<VkDescriptorPoolSize> poolSizes(2);
-        poolSizes[0] = Initializer::descriptorPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, frames_in_flight);
-        poolSizes[1] = Initializer::descriptorPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, frames_in_flight * textures.size());
-        auto descriptorPoolCreateInfo = Initializer::descriptorPoolCreateInfo(frames_in_flight, poolSizes);
+        poolSizes[0] = Initializer::descriptorPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, FRAMES_IN_FLIGHT);
+        poolSizes[1] = Initializer::descriptorPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, FRAMES_IN_FLIGHT * textures.size());
+        auto descriptorPoolCreateInfo = Initializer::descriptorPoolCreateInfo(FRAMES_IN_FLIGHT, poolSizes);
         VK_CHECK(
             vkCreateDescriptorPool(globals.device.handle, &descriptorPoolCreateInfo, globals.allocator, &resourceDescriptors[1].pool),
             __FILE__, __LINE__,
@@ -588,23 +600,26 @@ void Boxes::createResourceDescriptors()
             __FILE__, __LINE__,
             "Failed to create descriptor set layout");
 
-        std::vector<u32> descriptorCounts(frames_in_flight, textures.size());
+        std::vector<u32> descriptorCounts(FRAMES_IN_FLIGHT, textures.size());
         auto descriptorSetVariableDescriptorCountAllocateInfo = Initializer::descriptorSetVariableDescriptorCountAllocateInfo(descriptorCounts);
-        std::vector<VkDescriptorSetLayout> setLayouts(frames_in_flight, resourceDescriptors[1].setLayout);
+        std::vector<VkDescriptorSetLayout> setLayouts(FRAMES_IN_FLIGHT, resourceDescriptors[1].setLayout);
         auto descriptorSetAllocateInfo = Initializer::descriptorSetAllocateInfo(
             resourceDescriptors[1].pool,
-            frames_in_flight,
+            FRAMES_IN_FLIGHT,
             setLayouts,
             &descriptorSetVariableDescriptorCountAllocateInfo);
-        resourceDescriptors[1].handles.resize(frames_in_flight);
+        resourceDescriptors[1].handles.resize(FRAMES_IN_FLIGHT);
         VK_CHECK(
             vkAllocateDescriptorSets(globals.device.handle, &descriptorSetAllocateInfo, resourceDescriptors[1].handles.data()),
             __FILE__, __LINE__,
             "Failed to allocate descriptor sets");
 
-        for (u32 i = 0; i < frames_in_flight; ++i) {
+        for (u32 i = 0; i < FRAMES_IN_FLIGHT; ++i)
+        {
             std::vector<VkDescriptorBufferInfo> bufferDescriptors(1);
             bufferDescriptors[0] = Initializer::descriptorBufferInfo(frameResources[i].materialBuffer.handle, 0);
+
+
             std::vector<VkDescriptorImageInfo> imageDescriptors(textures.size());
             for (u32 j = 0; j < imageDescriptors.size(); ++j) {
                 imageDescriptors[j].sampler = textures[j].sampler.handle;
@@ -617,6 +632,10 @@ void Boxes::createResourceDescriptors()
                 0, 0, bufferDescriptors.size(),
                 VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
                 nullptr, bufferDescriptors.data(), nullptr);
+
+
+
+
             descriptorWrites[1] = Initializer::writeDescriptorSet(
                 resourceDescriptors[1].handles[i],
                 1, 0, imageDescriptors.size(),
@@ -627,8 +646,8 @@ void Boxes::createResourceDescriptors()
     }
     {
         std::vector<VkDescriptorPoolSize> poolSizes(1);
-        poolSizes[0] = Initializer::descriptorPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, frames_in_flight);
-        auto descriptorPoolCreateInfo = Initializer::descriptorPoolCreateInfo(frames_in_flight, poolSizes);
+        poolSizes[0] = Initializer::descriptorPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, FRAMES_IN_FLIGHT);
+        auto descriptorPoolCreateInfo = Initializer::descriptorPoolCreateInfo(FRAMES_IN_FLIGHT, poolSizes);
         VK_CHECK(
             vkCreateDescriptorPool(globals.device.handle, &descriptorPoolCreateInfo, globals.allocator, &resourceDescriptors[2].pool),
             __FILE__, __LINE__,
@@ -642,15 +661,15 @@ void Boxes::createResourceDescriptors()
             __FILE__, __LINE__,
             "Failed to create descriptor set layout");
 
-        std::vector<VkDescriptorSetLayout> setLayouts(frames_in_flight, resourceDescriptors[2].setLayout);
-        auto descriptorSetAllocateInfo = Initializer::descriptorSetAllocateInfo(resourceDescriptors[2].pool, frames_in_flight, setLayouts);
-        resourceDescriptors[2].handles.resize(frames_in_flight);
+        std::vector<VkDescriptorSetLayout> setLayouts(FRAMES_IN_FLIGHT, resourceDescriptors[2].setLayout);
+        auto descriptorSetAllocateInfo = Initializer::descriptorSetAllocateInfo(resourceDescriptors[2].pool, FRAMES_IN_FLIGHT, setLayouts);
+        resourceDescriptors[2].handles.resize(FRAMES_IN_FLIGHT);
         VK_CHECK(
             vkAllocateDescriptorSets(globals.device.handle, &descriptorSetAllocateInfo, resourceDescriptors[2].handles.data()),
             __FILE__, __LINE__,
             "Failed to allocate descriptor sets");
 
-        for (u32 i = 0; i < frames_in_flight; ++i) {
+        for (u32 i = 0; i < FRAMES_IN_FLIGHT; ++i) {
             std::vector<VkDescriptorBufferInfo> bufferDescriptors(1);
             bufferDescriptors[0] = Initializer::descriptorBufferInfo(frameResources[i].renderObjectBuffer.handle, 0, sizeof(renderObjects[0]));
             std::vector<VkWriteDescriptorSet> descriptorWrites(1);
@@ -676,7 +695,7 @@ void Boxes::createPipelines()
         std::vector<VkPipelineShaderStageCreateInfo> stages(2);
         VkShaderModule shaderModule[2];
         {
-            auto code = loadShaderCode("Boxes/CubeVertex.spv");
+            auto code = load_shader_code("Boxes/CubeVertex.spv");
             auto shaderModuleCreateInfo = Initializer::shaderModuleCreateInfo(code);
             VK_CHECK(
                 vkCreateShaderModule(globals.device.handle, &shaderModuleCreateInfo, globals.allocator, &shaderModule[0]),
@@ -685,7 +704,7 @@ void Boxes::createPipelines()
             stages[0] = Initializer::pipelineShaderStageCreateInfo(VK_SHADER_STAGE_VERTEX_BIT, shaderModule[0]);
         }
         {
-            auto code = loadShaderCode("Boxes/CubeFragment.spv");
+            auto code = load_shader_code("Boxes/CubeFragment.spv");
             auto shaderModuleCreateInfo = Initializer::shaderModuleCreateInfo(code);
             VK_CHECK(
                 vkCreateShaderModule(globals.device.handle, &shaderModuleCreateInfo, globals.allocator, &shaderModule[1]),
@@ -759,7 +778,7 @@ void Boxes::createPipelines()
         std::vector<VkPipelineShaderStageCreateInfo> stages(2);
         VkShaderModule shaderModule[2];
         {
-            auto code = loadShaderCode("Boxes/LightCubeVertex.spv");
+            auto code = load_shader_code("Boxes/LightCubeVertex.spv");
             auto shaderModuleCreateInfo = Initializer::shaderModuleCreateInfo(code);
             VK_CHECK(
                 vkCreateShaderModule(globals.device.handle, &shaderModuleCreateInfo, globals.allocator, &shaderModule[0]),
@@ -768,7 +787,7 @@ void Boxes::createPipelines()
             stages[0] = Initializer::pipelineShaderStageCreateInfo(VK_SHADER_STAGE_VERTEX_BIT, shaderModule[0]);
         }
         {
-            auto code = loadShaderCode("Boxes/LightCubeFragment.spv");
+            auto code = load_shader_code("Boxes/LightCubeFragment.spv");
             auto shaderModuleCreateInfo = Initializer::shaderModuleCreateInfo(code);
             VK_CHECK(
                 vkCreateShaderModule(globals.device.handle, &shaderModuleCreateInfo, globals.allocator, &shaderModule[1]),

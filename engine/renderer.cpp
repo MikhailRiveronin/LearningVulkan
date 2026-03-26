@@ -31,5 +31,5 @@ void Renderer::end_frame()
     auto present_info = Vulkan_Struct_Initializers::present_info(&per_frame_resources[current_frame_index].render_finished_semaphore, &swapchain.handle, &swapchain.next_image_index);
     VK_CHECK(vkQueuePresentKHR(queues.present.handle, &present_info));
 
-    current_frame_index = (current_frame_index + 1) % frames_in_flight;
+    current_frame_index = (current_frame_index + 1) % FRAMES_IN_FLIGHT;
 }

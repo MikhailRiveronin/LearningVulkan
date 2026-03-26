@@ -18,6 +18,7 @@ public:
 
     static VkWin32SurfaceCreateInfoKHR win32_surface_create_info(HWND h_wnd);
     static VkSwapchainCreateInfoKHR swapchain_create_info(VkSurfaceKHR surface, u32 min_image_count, VkFormat image_format, VkColorSpaceKHR image_color_space, VkExtent2D image_extent, std::vector<u32> const& queue_family_indices, VkSurfaceTransformFlagBitsKHR pre_transform, VkPresentModeKHR present_mode);
+    static VkBufferCreateInfo buffer_create_info(VkDeviceSize size, VkBufferUsageFlags usage);
     static VkImageCreateInfo image_create_info(VkFormat format, u32 width, u32 height, VkImageUsageFlags usage);
     static VkImageViewCreateInfo image_view_create_info(VkImage image, VkFormat format);
     static VkSamplerCreateInfo sampler_create_info();
@@ -29,15 +30,18 @@ public:
     static VkRenderPassCreateInfo render_pass_create_info(std::vector<VkAttachmentDescription> const& attachments, std::vector<VkSubpassDescription> const& subpasses, std::vector<VkSubpassDependency> const& dependencies);
 
     static VkCommandBufferBeginInfo command_buffer_begin_info();
-    static VkViewport viewport(VkExtent2D extent);
-    static VkRect2D scissor(VkExtent2D extent);
+    
     static VkSubmitInfo submit_info(VkSemaphore const* wait_semaphore, VkPipelineStageFlags const* wait_dst_stage_mask, VkCommandBuffer const* command_buffer, VkSemaphore const* signal_semaphore);
     static VkPresentInfoKHR present_info(VkSemaphore const* wait_semaphore, VkSwapchainKHR const* swapchain, u32 const* image_index);
 
+    static VkImageMemoryBarrier image_memory_barrier(VkAccessFlags src_access_mask, VkAccessFlags dst_access_mask, VkImageLayout old_layout, VkImageLayout new_layout, VkImage image);
+    static VkBufferImageCopy buffer_image_copy(u32 width, u32 height);
 
 
 
 
+
+    static VkMemoryAllocateInfo memory_allocate_info(VkDeviceSize allocation_size, u32 memory_type_index);
 
 
 
@@ -45,103 +49,65 @@ public:
 
     
 
-    static VkBufferCreateInfo buffer_create_info(VkDeviceSize size, VkBufferUsageFlags usage);
-
-
     
 
 
-    static VkShaderModuleCreateInfo shaderModuleCreateInfo(std::vector<u32> const& code);
+    static VkShaderModuleCreateInfo shader_module_create_info(std::vector<char> const& code);
+    static VkPipelineShaderStageCreateInfo pipeline_shader_stage_create_info(VkShaderStageFlagBits stage, VkShaderModule module);
+    static VkVertexInputBindingDescription vertex_input_binding_description(u32 binding, u32 stride);
+    static VkVertexInputAttributeDescription vertex_input_attribute_description(u32 location, u32 binding, VkFormat format, u32 offset);
+    static VkPipelineVertexInputStateCreateInfo pipeline_vertex_input_state_create_info(std::vector<VkVertexInputBindingDescription> const& vertex_binding_descriptions, std::vector<VkVertexInputAttributeDescription> const& vertex_attribute_descriptions);
+    static VkPipelineInputAssemblyStateCreateInfo pipeline_input_assembly_state_create_info(VkPrimitiveTopology topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+    static VkPipelineTessellationStateCreateInfo pipeline_tessellation_state_create_info();
+    static VkViewport viewport(float width, float height);
+    static VkRect2D scissor(u32 width, u32 height);
+    static VkPipelineViewportStateCreateInfo pipeline_viewport_state_create_info(std::vector<VkViewport> const& viewports, std::vector<VkRect2D> const& scissors);
+    static VkPipelineRasterizationStateCreateInfo pipeline_rasterization_state_create_info(VkBool32 depth_clamp_enable = VK_FALSE, VkBool32 rasterizer_discard_enable = VK_FALSE, VkPolygonMode polygon_mode = VK_POLYGON_MODE_FILL, VkCullModeFlags cull_mode = VK_CULL_MODE_NONE, VkFrontFace front_face = VK_FRONT_FACE_COUNTER_CLOCKWISE, VkBool32 depth_bias_enable = VK_FALSE, float depth_bias_constant_factor = 0.f, float depth_bias_clamp = 0.f, float depth_bias_slope_factor = 0.f, float line_width = 1.f);
+    static VkPipelineMultisampleStateCreateInfo pipeline_multisample_state_create_info(VkSampleCountFlagBits rasterization_samples = VK_SAMPLE_COUNT_1_BIT, VkBool32 sample_shading_enable = VK_FALSE, float min_sample_shading = 0.f, VkSampleMask const* sample_mask = nullptr, VkBool32 alpha_to_coverage_enable = VK_FALSE, VkBool32 alpha_to_one_enable = VK_FALSE);
+    static VkPipelineDepthStencilStateCreateInfo pipeline_depth_stencil_state_create_info(VkBool32 depth_test_enable = VK_TRUE, VkBool32 depth_write_enable = VK_TRUE, VkCompareOp depth_compare_op = VK_COMPARE_OP_LESS, VkBool32 depth_bounds_test_enable = VK_FALSE, VkBool32 stencil_test_enable = VK_FALSE, VkStencilOpState front = {}, VkStencilOpState back = {});
+    static VkPipelineColorBlendAttachmentState pipeline_color_blend_attachment_state(VkBool32 blend_enable = VK_FALSE, VkBlendFactor src_color_blend_factor = VK_BLEND_FACTOR_ONE, VkBlendFactor dst_color_blend_factor = VK_BLEND_FACTOR_ZERO, VkBlendOp color_blend_op = VK_BLEND_OP_ADD, VkBlendFactor src_alpha_blend_factor = VK_BLEND_FACTOR_ONE, VkBlendFactor dst_alpha_blend_factor = VK_BLEND_FACTOR_ZERO, VkBlendOp alpha_blend_op = VK_BLEND_OP_ADD, VkColorComponentFlags color_write_mask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT);
+    static VkPipelineColorBlendStateCreateInfo pipeline_color_blend_state_create_info(std::vector<VkPipelineColorBlendAttachmentState> const& color_blend_attachments);
+    static VkPipelineDynamicStateCreateInfo pipeline_dynamic_state_create_info(std::vector<VkDynamicState> const& dynamic_states);
+    static VkPipelineLayoutCreateInfo pipeline_layout_create_info(std::vector<VkDescriptorSetLayout> const& set_layouts);
+    static VkGraphicsPipelineCreateInfo graphics_pipeline_create_info(std::vector<VkPipelineShaderStageCreateInfo> const& stages, VkPipelineInputAssemblyStateCreateInfo const* input_assembly_state, VkPipelineTessellationStateCreateInfo const* tessellation_state, VkPipelineViewportStateCreateInfo const* viewport_state, VkPipelineRasterizationStateCreateInfo const* rasterization_state, VkPipelineMultisampleStateCreateInfo const* multisample_state, VkPipelineDepthStencilStateCreateInfo const* depth_stencil_state, VkPipelineColorBlendStateCreateInfo const* color_blend_state, VkPipelineDynamicStateCreateInfo const* dynamic_state, VkPipelineLayout layout, VkRenderPass render_pass, u32 subpass = 0, VkPipeline base_pipeline_handle = VK_NULL_HANDLE, i32 base_pipeline_index = 0);
 
-    static VkVertexInputBindingDescription vertexInputBindingDescription(u32 binding, u32 stride, VkVertexInputRate inputRate = VK_VERTEX_INPUT_RATE_VERTEX);
-    static VkVertexInputAttributeDescription vertexInputAttributeDescription(u32 location, u32 binding, VkFormat format, u32 offset);
 
 
-    static VkDescriptorSetLayoutBinding descriptorSetLayoutBinding(u32 binding, VkDescriptorType descriptorType, VkShaderStageFlags stageFlags);
-    static VkDescriptorPoolSize descriptorPoolSize(VkDescriptorType type, u32 descriptorCount);
-    static VkDescriptorPoolCreateInfo descriptorPoolCreateInfo(u32 maxSets, std::vector<VkDescriptorPoolSize> const& poolSizes);
+
+
+
+
+
+
+
+
+
+
+    static VkDescriptorSetLayoutBinding descriptor_set_layout_binding(u32 binding, VkDescriptorType descriptor_type, VkShaderStageFlags stage_flags);
+    static VkDescriptorPoolSize descriptor_pool_size(VkDescriptorType type, u32 descriptor_count);
+    static VkDescriptorPoolCreateInfo descriptor_pool_create_info(u32 max_sets, std::vector<VkDescriptorPoolSize> const& pool_sizes);
     static VkDescriptorSetLayoutBindingFlagsCreateInfo descriptorSetLayoutBindingFlagsCreateInfo(std::vector<VkDescriptorBindingFlags> const& bindingFlags);
-    static VkDescriptorSetLayoutCreateInfo descriptorSetLayoutCreateInfo(std::vector<VkDescriptorSetLayoutBinding> const& bindings, void const* next = nullptr);
+    static VkDescriptorSetLayoutCreateInfo descriptor_set_layout_create_info(std::vector<VkDescriptorSetLayoutBinding> const& bindings, void const* next = nullptr);
     static VkDescriptorSetVariableDescriptorCountAllocateInfo descriptorSetVariableDescriptorCountAllocateInfo(std::vector<u32> const& descriptorCounts);
-    static VkDescriptorSetAllocateInfo descriptorSetAllocateInfo(
-        VkDescriptorPool descriptorPool,
-        u32 descriptorSetCount,
-        std::vector<VkDescriptorSetLayout> const& setLayouts,
-        void const* next = nullptr);
-    static VkDescriptorBufferInfo descriptorBufferInfo(VkBuffer buffer, VkDeviceSize offset, VkDeviceSize range = VK_WHOLE_SIZE);
-    static VkDescriptorImageInfo descriptorImageInfo(VkSampler sampler, VkImageView imageView, VkImageLayout imageLayout);
-    static VkWriteDescriptorSet writeDescriptorSet(
-        VkDescriptorSet dstSet,
-        u32 dstBinding,
-        VkDescriptorType descriptorType,
-        VkDescriptorImageInfo const* imageInfo,
-        VkDescriptorBufferInfo const* bufferInfo);
+    static VkDescriptorSetAllocateInfo descriptor_set_allocate_info(VkDescriptorPool descriptor_pool, std::vector<VkDescriptorSetLayout> const& set_layouts, void const* next = nullptr);
+    static VkDescriptorBufferInfo descriptor_buffer_info(VkBuffer buffer, VkDeviceSize offset = 0, VkDeviceSize range = VK_WHOLE_SIZE);
+    static VkDescriptorImageInfo descriptor_image_info(VkSampler sampler, VkImageView image_view, VkImageLayout image_layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
-    static VkPipelineShaderStageCreateInfo pipelineShaderStageCreateInfo(VkShaderStageFlagBits stage, VkShaderModule module);
-    static VkPipelineVertexInputStateCreateInfo pipelineVertexInputStateCreateInfo(
-        std::vector<VkVertexInputBindingDescription> const& vertexBindingDescriptions,
-        std::vector<VkVertexInputAttributeDescription> const& vertexAttributeDescriptions);
-    static VkPipelineInputAssemblyStateCreateInfo pipelineInputAssemblyStateCreateInfo(
-        VkPrimitiveTopology topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
-        VkBool32 primitiveRestartEnable = VK_FALSE);
-    static VkPipelineTessellationStateCreateInfo pipelineTessellationStateCreateInfo();
-    static VkPipelineViewportStateCreateInfo pipelineViewportStateCreateInfo(std::vector<VkViewport> const& viewports, std::vector<VkRect2D> const& scissors);
-    static VkPipelineRasterizationStateCreateInfo pipelineRasterizationStateCreateInfo(
-        VkBool32 depthClampEnable = VK_FALSE,
-        VkBool32 rasterizerDiscardEnable = VK_FALSE,
-        VkPolygonMode polygonMode = VK_POLYGON_MODE_FILL,
-        VkCullModeFlags cullMode = VK_CULL_MODE_NONE,
-        VkFrontFace frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE,
-        VkBool32 depthBiasEnable = VK_FALSE,
-        float depthBiasConstantFactor = 0.f,
-        float depthBiasClamp = 0.f,
-        float depthBiasSlopeFactor = 0.f,
-        float lineWidth = 1.f);
-    static VkPipelineMultisampleStateCreateInfo pipelineMultisampleStateCreateInfo(
-        VkSampleCountFlagBits rasterizationSamples = VK_SAMPLE_COUNT_1_BIT,
-        VkBool32 sampleShadingEnable = VK_FALSE,
-        float minSampleShading = 0.f,
-        VkSampleMask const* sampleMask = nullptr,
-        VkBool32 alphaToCoverageEnable = VK_FALSE,
-        VkBool32 alphaToOneEnable = VK_FALSE);
-    static VkPipelineDepthStencilStateCreateInfo pipelineDepthStencilStateCreateInfo(
-        VkBool32 depthTestEnable = VK_TRUE,
-        VkBool32 depthWriteEnable = VK_TRUE,
-        VkCompareOp depthCompareOp = VK_COMPARE_OP_LESS,
-        VkBool32 depthBoundsTestEnable = VK_FALSE,
-        VkBool32 stencilTestEnable = VK_FALSE,
-        VkStencilOpState front = {},
-        VkStencilOpState back = {});
-    static VkPipelineColorBlendAttachmentState pipelineColorBlendAttachmentState(
-        VkBool32 blendEnable = VK_FALSE,
-        VkBlendFactor srcColorBlendFactor = VK_BLEND_FACTOR_ONE,
-        VkBlendFactor dstColorBlendFactor = VK_BLEND_FACTOR_ZERO,
-        VkBlendOp colorBlendOp = VK_BLEND_OP_ADD,
-        VkBlendFactor srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE,
-        VkBlendFactor dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO,
-        VkBlendOp alphaBlendOp = VK_BLEND_OP_ADD,
-        VkColorComponentFlags colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT);
-    static VkPipelineColorBlendStateCreateInfo pipelineColorBlendStateCreateInfo(std::vector<VkPipelineColorBlendAttachmentState> const& colorBlendAttachments);
-    static VkPipelineDynamicStateCreateInfo pipelineDynamicStateCreateInfo(std::vector<VkDynamicState> const& dynamicStates);
-    static VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo(
-        std::vector<VkDescriptorSetLayout> const& setLayouts,
-        std::vector<VkPushConstantRange> const& pushConstantRanges);
-    static VkGraphicsPipelineCreateInfo graphicsPipelineCreateInfo(
-        std::vector<VkPipelineShaderStageCreateInfo> const& stages,
-        VkPipelineVertexInputStateCreateInfo const* vertexInputState,
-        VkPipelineInputAssemblyStateCreateInfo const* inputAssemblyState,
-        VkPipelineTessellationStateCreateInfo const* tessellationState,
-        VkPipelineViewportStateCreateInfo const* viewportState,
-        VkPipelineRasterizationStateCreateInfo const* rasterizationState,
-        VkPipelineMultisampleStateCreateInfo const* multisampleState,
-        VkPipelineDepthStencilStateCreateInfo const* depthStencilState,
-        VkPipelineColorBlendStateCreateInfo const* colorBlendState,
-        VkPipelineDynamicStateCreateInfo const* dynamicState,
-        VkPipelineLayout layout,
-        VkRenderPass renderPass,
-        u32 subpass = 0,
-        VkPipeline basePipelineHandle = VK_NULL_HANDLE,
-        i32 basePipelineIndex = 0);
+    static VkWriteDescriptorSet write_descriptor_set(VkDescriptorSet dst_set, u32 dst_binding, std::vector<VkDescriptorBufferInfo> buffer_infos);
+    static VkWriteDescriptorSet write_descriptor_set(VkDescriptorSet dst_set, u32 dst_binding, std::vector<VkDescriptorImageInfo> image_infos);
+
+
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
 
     
     static VkRenderPassBeginInfo renderPassBeginInfo(

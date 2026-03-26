@@ -394,7 +394,7 @@ void SampleBase::drawFrame()
     presentInfo.pImageIndices = &imageIndex;
     presentInfo.pResults = nullptr;
 
-    frameIndex = (frameIndex + 1) % frames_in_flight;
+    frameIndex = (frameIndex + 1) % FRAMES_IN_FLIGHT;
 
     result = vkQueuePresentKHR(globals.device.queues.present.handle, &presentInfo);
 }

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Structures.h"
+#include "vulkan_classes.h"
 
 #include <vulkan/vulkan.h>
 

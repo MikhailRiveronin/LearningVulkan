@@ -12,8 +12,8 @@ void Renderer::begin_frame()
     auto command_buffer_begin_info = Vulkan_Struct_Initializers::command_buffer_begin_info();
     VK_CHECK(vkBeginCommandBuffer(per_frame_resources[current_frame_index].command_buffer, &command_buffer_begin_info));
 
-    auto viewport = Vulkan_Struct_Initializers::viewport(swapchain.extent);
-    auto scissor = Vulkan_Struct_Initializers::scissor(swapchain.extent);
+    auto viewport = Vulkan_Struct_Initializers::viewport(swapchain.extent.width, swapchain.extent.height);
+    auto scissor = Vulkan_Struct_Initializers::scissor(swapchain.extent.width, swapchain.extent.height);
     vkCmdSetViewport(per_frame_resources[current_frame_index].command_buffer, 0, 1, &viewport);
     vkCmdSetScissor(per_frame_resources[current_frame_index].command_buffer, 0, 1, &scissor);
 

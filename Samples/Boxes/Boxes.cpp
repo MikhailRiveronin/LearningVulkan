@@ -609,10 +609,8 @@ void Boxes::createResourceDescriptors()
             setLayouts,
             &descriptorSetVariableDescriptorCountAllocateInfo);
         resourceDescriptors[1].handles.resize(FRAMES_IN_FLIGHT);
-        VK_CHECK(
-            vkAllocateDescriptorSets(globals.device.handle, &descriptorSetAllocateInfo, resourceDescriptors[1].handles.data()),
-            __FILE__, __LINE__,
-            "Failed to allocate descriptor sets");
+
+        VK_CHECK(vkAllocateDescriptorSets(globals.device.handle, &descriptorSetAllocateInfo, resourceDescriptors[1].handles.data()));
 
         for (u32 i = 0; i < FRAMES_IN_FLIGHT; ++i)
         {

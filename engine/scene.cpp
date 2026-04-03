@@ -1,4 +1,183 @@
-#include "scene_manager.h"
+#include "scene.h"
+
+#include "utils.h"
+
+static void save_map(FILE* file, std::unordered_map<u32, u32> const& map);
+static void load_map(FILE* file, std::unordered_map<u32, u32>& map);
+
+i32 Scene::add_node(i32 parent, i32 level)
+{
+    i32 node = static_cast<i32>(hierarchies.size());
+    hierarchies.push_back({ .parent = parent, .last_sibling = -1 });
+    if (parent != -1)
+    {
+        if (hierarchies[parent].first_child == -1)
+        {
+            hierarchies[parent].first_child = node;
+            hierarchies[node].last_sibling = node;
+        }
+        else
+        {
+            i32 dest = hierarchies[hierarchies[parent].first_child].last_sibling;
+            if (dest == -1)
+            {
+                for (dest = hierarchies[parent].first_child; hierarchies[dest].next_sibling != -1; dest = hierarchies[dest].next_sibling)
+                {
+                }
+            }
+
+            hierarchies[dest].next_sibling = node;
+            hierarchies[hierarchies[parent].first_child].last_sibling = node;
+        }
+    }
+
+    hierarchies[node].first_child = -1;
+    hierarchies[node].next_sibling = -1;
+    hierarchies[node].level = level;
+
+    local_transforms.push_back(glm::mat4(1.0f));
+    global_transforms.push_back(glm::mat4(1.0f));
+
+    return node;
+}
+
+void Scene::save_to_file(char const* filename) const
+{
+    FILE* file = fopen(filename, "wb");
+    if (!file)
+    {
+        // Handle error
+        return;
+    }
+
+    u32 size = static_cast<u32>(hierarchies.size());
+    fwrite(&size, sizeof(size), 1, file);
+
+    fwrite(hierarchies.data(), sizeof(Hierarchy), size, file);
+    fwrite(local_transforms.data(), sizeof(glm::mat4), size, file);
+    fwrite(global_transforms.data(), sizeof(glm::mat4), size, file);
+
+    save_map(file, node_to_material);
+    save_map(file, node_to_mesh);
+
+    if (!node_names.empty() && !node_to_name.empty())
+    {
+        save_map(file, node_to_name);
+        save_strings(file, node_names);
+        save_strings(file, material_names);
+    }
+
+    fclose(file);
+}
+
+void Scene::load_from_file(char const* filename)
+{
+    FILE* file = fopen(filename, "rb");
+    if (!file)
+    {
+        // Handle error
+        return;
+    }
+
+    u32 size;
+    fread(&size, sizeof(size), 1, file);
+    hierarchies.resize(size);
+    local_transforms.resize(size);
+    global_transforms.resize(size);
+
+    fread(hierarchies.data(), sizeof(Hierarchy), size, file);
+    fread(local_transforms.data(), sizeof(glm::mat4), size, file);
+    fread(global_transforms.data(), sizeof(glm::mat4), size, file);
+
+    load_map(file, node_to_mesh);
+    load_map(file, node_to_material);
+
+    if (!feof(file))
+    {
+        load_map(file, node_to_name);
+        load_strings(file, node_names);
+        load_strings(file, material_names);
+    }
+
+    fclose(f);
+}
+
+void Scene::mark_as_changed(i32 node)
+{
+    changed_at_this_frame[hierarchies[node].level].push_back(node);
+
+    for (i32 first_child = hierarchies[node].first_child; first_child != -1; first_child = hierarchies[node].next_sibling)
+    {
+        mark_as_changed(first_child);
+    }
+}
+
+void Scene::recalculate_global_transforms()
+{
+    if (!changed_at_this_frame[0].empty())
+    {
+        global_transforms[changed_at_this_frame[0][0]] = local_transforms[changed_at_this_frame[0][0]];
+        changed_at_this_frame[0].clear();
+    }
+
+    for (u32 level = 1; level < MAX_NODE_LEVEL; ++level)
+    {
+        if (!changed_at_this_frame[level].empty())
+        {
+            for (int changed : changed_at_this_frame[level])
+            {
+                global_transforms[changed] = global_transforms[hierarchies[changed].parent] * local_transforms[changed];
+            }
+
+            changed_at_this_frame[level].clear();
+        }
+    }
+}
+
+void save_map(FILE* file, std::unordered_map<u32, u32> const& map)
+{
+    std::vector<u32> data;
+    data.reserve(map.size() * 2);
+    for (auto& pair : map)
+    {
+        data.push_back(pair.first);
+        data.push_back(pair.second);
+    }
+
+    u32 size = static_cast<u32>(data.size());
+    fwrite(&size, sizeof(size), 1, file);
+    fwrite(data.data(), sizeof(u32), data.size(), file);
+}
+
+void load_map(FILE* file, std::unordered_map<u32, u32>& map)
+{
+    u32 size = 0;
+    fread(&size, 1, sizeof(size), file);
+
+    std::vector<u32> data(size);
+    fread(data.data(), sizeof(u32), size, file);
+    for (u32 i = 0; i < (size / 2); ++i)
+    {
+        map[data[i * 2]] = data[i * 2 + 1];
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 #include "mesh_manager.h"
 #include "third_party/tiny_gltf.h"

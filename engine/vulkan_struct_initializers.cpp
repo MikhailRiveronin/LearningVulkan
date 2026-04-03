@@ -263,6 +263,22 @@ VkCommandBufferBeginInfo Vulkan_Struct_Initializers::command_buffer_begin_info()
     return begin_info;
 }
 
+VkRenderPassBeginInfo Vulkan_Struct_Initializers::render_pass_begin_info(VkRenderPass render_pass, VkFramebuffer framebuffer, u32 width, u32 height, std::vector<VkClearValue> const& clear_values)
+{
+    VkRenderPassBeginInfo begin_info = {};
+    begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    begin_info.pNext = nullptr;
+    begin_info.renderPass = render_pass;
+    begin_info.framebuffer = framebuffer;
+    begin_info.renderArea.offset.x = 0;
+    begin_info.renderArea.offset.y = 0;
+    begin_info.renderArea.extent.width = width;
+    begin_info.renderArea.extent.height = height;
+    begin_info.clearValueCount = clear_values.size();
+    begin_info.pClearValues = clear_values.data();
+    return begin_info;
+}
+
 
 
 VkSubmitInfo Vulkan_Struct_Initializers::submit_info(VkSemaphore const* wait_semaphore, VkPipelineStageFlags const* wait_dst_stage_mask, VkCommandBuffer const* command_buffer, VkSemaphore const* signal_semaphore)
@@ -359,14 +375,14 @@ VkMemoryAllocateInfo Vulkan_Struct_Initializers::memory_allocate_info(VkDeviceSi
 
 
 
-VkShaderModuleCreateInfo Vulkan_Struct_Initializers::shader_module_create_info(std::vector<char> const& code)
+VkShaderModuleCreateInfo Vulkan_Struct_Initializers::shader_module_create_info(std::vector<u32 const> const& byte_code)
 {
     VkShaderModuleCreateInfo create_info = {};
     create_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
     create_info.pNext = nullptr;
     create_info.flags = 0;
-    create_info.codeSize = code.size();
-    create_info.pCode = reinterpret_cast<u32*>(code.data());
+    create_info.codeSize = byte_code.size() * sizeof(u32);
+    create_info.pCode = byte_code.data();
     return create_info;
 }
 
@@ -522,18 +538,18 @@ VkPipelineDepthStencilStateCreateInfo Vulkan_Struct_Initializers::pipeline_depth
     return create_info;
 }
 
-VkPipelineColorBlendAttachmentState Vulkan_Struct_Initializers::pipeline_color_blend_attachment_state(VkBool32 blend_enable, VkBlendFactor src_color_blend_factor, VkBlendFactor dst_color_blend_factor, VkBlendOp color_blend_op, VkBlendFactor src_alpha_blend_factor, VkBlendFactor dst_alpha_blend_factor, VkBlendOp alpha_blend_op, VkColorComponentFlags color_write_mask)
+VkPipelineColorBlendAttachmentState Vulkan_Struct_Initializers::pipeline_color_blend_attachment_state(VkBool32 blend_enable, VkBlendFactor src_color_blend_factor, VkBlendFactor dst_color_blend_factor, VkBlendOp color_blend_op, VkBlendFactor src_alpha_blend_factor, VkBlendFactor dst_alpha_blend_factor, VkBlendOp alpha_blend_op)
 {
-    VkPipelineColorBlendAttachmentState color_blend_attachment = {};
-    color_blend_attachment.blendEnable = blend_enable;
-    color_blend_attachment.srcColorBlendFactor = src_color_blend_factor;
-    color_blend_attachment.dstColorBlendFactor = dst_color_blend_factor;
-    color_blend_attachment.colorBlendOp = color_blend_op;
-    color_blend_attachment.srcAlphaBlendFactor = src_alpha_blend_factor;
-    color_blend_attachment.dstAlphaBlendFactor = dst_alpha_blend_factor;
-    color_blend_attachment.alphaBlendOp = alpha_blend_op;
-    color_blend_attachment.colorWriteMask = color_write_mask;
-    return color_blend_attachment;
+    VkPipelineColorBlendAttachmentState state = {};
+    state.blendEnable = blend_enable;
+    state.srcColorBlendFactor = src_color_blend_factor;
+    state.dstColorBlendFactor = dst_color_blend_factor;
+    state.colorBlendOp = color_blend_op;
+    state.srcAlphaBlendFactor = src_alpha_blend_factor;
+    state.dstAlphaBlendFactor = dst_alpha_blend_factor;
+    state.alphaBlendOp = alpha_blend_op;
+    state.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+    return state;
 }
 
 VkPipelineColorBlendStateCreateInfo Vulkan_Struct_Initializers::pipeline_color_blend_state_create_info(std::vector<VkPipelineColorBlendAttachmentState> const& color_blend_attachments)
@@ -602,6 +618,26 @@ VkGraphicsPipelineCreateInfo Vulkan_Struct_Initializers::graphics_pipeline_creat
     return create_info;
 }
 
+VkSpecializationMapEntry Vulkan_Struct_Initializers::specialization_map_entry(u32 constant_id, u32 offset, size_t size)
+{
+    return VkSpecializationMapEntry
+    {
+        .constantID = constant_id,
+        .offset = offset,
+        .size = size
+    };
+}
+
+VkSpecializationInfo Vulkan_Struct_Initializers::specialization_info(std::vector<VkSpecializationMapEntry> const& map_entries, size_t data_size, void const* data)
+{
+    return VkSpecializationInfo
+    {
+        .mapEntryCount = static_cast<u32>(map_entries.size()),
+        .pMapEntries = map_entries.data(),
+        .dataSize = data_size,
+        .pData = data
+    };
+}
 
 
 
@@ -612,12 +648,13 @@ VkGraphicsPipelineCreateInfo Vulkan_Struct_Initializers::graphics_pipeline_creat
 
 
 
-VkDescriptorSetLayoutBinding Vulkan_Struct_Initializers::descriptor_set_layout_binding(u32 binding, VkDescriptorType descriptor_type, VkShaderStageFlags stage_flags)
+
+VkDescriptorSetLayoutBinding Vulkan_Struct_Initializers::descriptor_set_layout_binding(u32 binding, VkDescriptorType descriptor_type, VkShaderStageFlags stage_flags, u32 descriptor_count)
 {
     VkDescriptorSetLayoutBinding layout_binding = {};
     layout_binding.binding = binding;
     layout_binding.descriptorType = descriptor_type;
-    layout_binding.descriptorCount = 1;
+    layout_binding.descriptorCount = descriptor_count;
     layout_binding.stageFlags = stage_flags;
     layout_binding.pImmutableSamplers = nullptr;
     return layout_binding;
@@ -643,13 +680,13 @@ VkDescriptorPoolCreateInfo Vulkan_Struct_Initializers::descriptor_pool_create_in
     return create_info;
 }
 
-VkDescriptorSetLayoutBindingFlagsCreateInfo Vulkan_Struct_Initializers::descriptorSetLayoutBindingFlagsCreateInfo(std::vector<VkDescriptorBindingFlags> const& bindingFlags)
+VkDescriptorSetLayoutBindingFlagsCreateInfo Vulkan_Struct_Initializers::descriptor_set_layout_binding_flags_create_info(std::vector<VkDescriptorBindingFlags> const& binding_flags)
 {
     VkDescriptorSetLayoutBindingFlagsCreateInfo create_info = {};
     create_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO;
     create_info.pNext = nullptr;
-    create_info.bindingCount = bindingFlags.size();
-    create_info.pBindingFlags = bindingFlags.data();
+    create_info.bindingCount = binding_flags.size();
+    create_info.pBindingFlags = binding_flags.data();
     return create_info;
 }
 
@@ -664,17 +701,17 @@ VkDescriptorSetLayoutCreateInfo Vulkan_Struct_Initializers::descriptor_set_layou
     return create_info;
 }
 
-VkDescriptorSetVariableDescriptorCountAllocateInfo Vulkan_Struct_Initializers::descriptorSetVariableDescriptorCountAllocateInfo(std::vector<u32> const& descriptorCounts)
+VkDescriptorSetVariableDescriptorCountAllocateInfo Vulkan_Struct_Initializers::descriptor_set_variable_descriptor_count_allocate_info(std::array<u32, FRAMES_IN_FLIGHT> const& descriptor_counts)
 {
-    VkDescriptorSetVariableDescriptorCountAllocateInfo allocateInfo = {};
-    allocateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_ALLOCATE_INFO;
-    allocateInfo.pNext = nullptr;
-    allocateInfo.descriptorSetCount = descriptorCounts.size();
-    allocateInfo.pDescriptorCounts = descriptorCounts.data();
-    return allocateInfo;
+    VkDescriptorSetVariableDescriptorCountAllocateInfo allocate_info = {};
+    allocate_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_ALLOCATE_INFO;
+    allocate_info.pNext = nullptr;
+    allocate_info.descriptorSetCount = descriptor_counts.size();
+    allocate_info.pDescriptorCounts = descriptor_counts.data();
+    return allocate_info;
 }
 
-VkDescriptorSetAllocateInfo Vulkan_Struct_Initializers::descriptor_set_allocate_info(VkDescriptorPool descriptor_pool, std::vector<VkDescriptorSetLayout> const& set_layouts, void const* next)
+VkDescriptorSetAllocateInfo Vulkan_Struct_Initializers::descriptor_set_allocate_info(VkDescriptorPool descriptor_pool, std::array<VkDescriptorSetLayout, FRAMES_IN_FLIGHT> const& set_layouts, void const* next)
 {
     VkDescriptorSetAllocateInfo allocate_info = {};
     allocate_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
@@ -694,16 +731,16 @@ VkDescriptorBufferInfo Vulkan_Struct_Initializers::descriptor_buffer_info(VkBuff
     return buffer_info;
 }
 
-VkDescriptorImageInfo Vulkan_Struct_Initializers::descriptor_image_info(VkSampler sampler, VkImageView image_view, VkImageLayout image_layout)
+VkDescriptorImageInfo Vulkan_Struct_Initializers::descriptor_image_info(VkImageView image_view, VkImageLayout image_layout, VkSampler sampler)
 {
     VkDescriptorImageInfo image_info = {};
-    image_info.sampler = sampler;
     image_info.imageView = image_view;
     image_info.imageLayout = image_layout;
+    image_info.sampler = sampler;
     return image_info;
 }
 
-VkWriteDescriptorSet Vulkan_Struct_Initializers::write_descriptor_set(VkDescriptorSet dst_set, u32 dst_binding, std::vector<VkDescriptorBufferInfo> buffer_infos)
+VkWriteDescriptorSet Vulkan_Struct_Initializers::write_descriptor_set(VkDescriptorSet dst_set, u32 dst_binding, std::vector<VkDescriptorBufferInfo> buffer_infos, VkDescriptorType descriptor_type)
 {
     VkWriteDescriptorSet descriptor_write = {};
     descriptor_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -712,14 +749,14 @@ VkWriteDescriptorSet Vulkan_Struct_Initializers::write_descriptor_set(VkDescript
     descriptor_write.dstBinding = dst_binding;
     descriptor_write.dstArrayElement = 0;
     descriptor_write.descriptorCount = buffer_infos.size();
-    descriptor_write.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    descriptor_write.descriptorType = descriptor_type;
     descriptor_write.pImageInfo = nullptr;
     descriptor_write.pBufferInfo = buffer_infos.data();
     descriptor_write.pTexelBufferView = nullptr;
     return descriptor_write;
 }
 
-VkWriteDescriptorSet Vulkan_Struct_Initializers::write_descriptor_set(VkDescriptorSet dst_set, u32 dst_binding, std::vector<VkDescriptorImageInfo> image_infos)
+VkWriteDescriptorSet Vulkan_Struct_Initializers::write_descriptor_set(VkDescriptorSet dst_set, u32 dst_binding, std::vector<VkDescriptorImageInfo> image_infos, VkDescriptorType descriptor_type)
 {
     VkWriteDescriptorSet descriptor_write = {};
     descriptor_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -728,7 +765,7 @@ VkWriteDescriptorSet Vulkan_Struct_Initializers::write_descriptor_set(VkDescript
     descriptor_write.dstBinding = dst_binding;
     descriptor_write.dstArrayElement = 0;
     descriptor_write.descriptorCount = image_infos.size();
-    descriptor_write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    descriptor_write.descriptorType = descriptor_type;
     descriptor_write.pImageInfo = image_infos.data();
     descriptor_write.pBufferInfo = nullptr;
     descriptor_write.pTexelBufferView = nullptr;
@@ -762,22 +799,7 @@ VkWriteDescriptorSet Vulkan_Struct_Initializers::write_descriptor_set(VkDescript
 
 
 
-VkRenderPassBeginInfo Vulkan_Struct_Initializers::renderPassBeginInfo(
-    VkRenderPass renderPass,
-    VkFramebuffer framebuffer,
-    VkRect2D renderArea,
-    std::vector<VkClearValue> const& clearValues)
-{
-    VkRenderPassBeginInfo beginInfo = {};
-    beginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-    beginInfo.pNext = nullptr;
-    beginInfo.renderPass = renderPass;
-    beginInfo.framebuffer = framebuffer;
-    beginInfo.renderArea = renderArea;
-    beginInfo.clearValueCount = clearValues.size();
-    beginInfo.pClearValues = clearValues.data();
-    return beginInfo;
-}
+
 
 VmaAllocationCreateInfo Vulkan_Struct_Initializers::allocation_create_info(VmaAllocationCreateFlags flags)
 {
@@ -791,4 +813,181 @@ VmaAllocationCreateInfo Vulkan_Struct_Initializers::allocation_create_info(VmaAl
     create_info.pUserData = nullptr;
     create_info.priority = 1.f;
     return create_info;
+}
+
+glslang_resource_t Vulkan_Struct_Initializers::glslang_resource(VkPhysicalDeviceLimits const& limits)
+{
+    glslang_resource_t resource =
+    {
+        .max_lights = 32,
+        .max_clip_planes = static_cast<int>(limits.maxClipDistances),
+        .max_texture_units = 32,
+        .max_texture_coords = 32,
+        .max_vertex_attribs = static_cast<int>(limits.maxVertexInputAttributes),
+        .max_vertex_uniform_components = static_cast<int>(limits.maxUniformBufferRange / 4),
+        .max_varying_floats = static_cast<int>(std::min(limits.maxVertexOutputComponents, limits.maxFragmentInputComponents)),
+        .max_vertex_texture_image_units = 32,
+        .max_combined_texture_image_units = 80,
+        .max_texture_image_units = 32,
+        .max_fragment_uniform_components = 4096,
+        .max_draw_buffers = 32,
+        .max_vertex_uniform_vectors = 128,
+        .max_varying_vectors = 8,
+        .max_fragment_uniform_vectors = 16,
+        .max_vertex_output_vectors = static_cast<int>(limits.maxVertexOutputComponents / 4),
+        .max_fragment_input_vectors = static_cast<int>(limits.maxFragmentInputComponents / 4),
+        .min_program_texel_offset = limits.minTexelOffset,
+        .max_program_texel_offset = static_cast<int>(limits.maxTexelOffset),
+        .max_clip_distances = static_cast<int>(limits.maxClipDistances),
+        .max_compute_work_group_count_x = static_cast<int>(limits.maxComputeWorkGroupCount[0]),
+        .max_compute_work_group_count_y = static_cast<int>(limits.maxComputeWorkGroupCount[1]),
+        .max_compute_work_group_count_z = static_cast<int>(limits.maxComputeWorkGroupCount[2]),
+        .max_compute_work_group_size_x = static_cast<int>(limits.maxComputeWorkGroupSize[0]),
+        .max_compute_work_group_size_y = static_cast<int>(limits.maxComputeWorkGroupSize[1]),
+        .max_compute_work_group_size_z = static_cast<int>(limits.maxComputeWorkGroupSize[2]),
+        .max_compute_uniform_components = 1024,
+        .max_compute_texture_image_units = 16,
+        .max_compute_image_uniforms = 8,
+        .max_compute_atomic_counters = 8,
+        .max_compute_atomic_counter_buffers = 1,
+        .max_varying_components = 60,
+        .max_vertex_output_components = static_cast<int>(limits.maxVertexOutputComponents),
+        .max_geometry_input_components = static_cast<int>(limits.maxGeometryInputComponents),
+        .max_geometry_output_components = static_cast<int>(limits.maxGeometryOutputComponents),
+        .max_fragment_input_components = static_cast<int>(limits.maxFragmentInputComponents),
+        .max_image_units = 8,
+        .max_combined_image_units_and_fragment_outputs = 8,
+        .max_combined_shader_output_resources = 8,
+        .max_image_samples = 0,
+        .max_vertex_image_uniforms = 0,
+        .max_tess_control_image_uniforms = 0,
+        .max_tess_evaluation_image_uniforms = 0,
+        .max_geometry_image_uniforms = 0,
+        .max_fragment_image_uniforms = 8,
+        .max_combined_image_uniforms = 8,
+        .max_geometry_texture_image_units = 16,
+        .max_geometry_output_vertices = static_cast<int>(limits.maxGeometryOutputVertices),
+        .max_geometry_total_output_components = static_cast<int>(limits.maxGeometryTotalOutputComponents),
+        .max_geometry_uniform_components = 1024,
+        .max_geometry_varying_components = 64,
+        .max_tess_control_input_components = static_cast<int>(limits.maxTessellationControlPerVertexInputComponents),
+        .max_tess_control_output_components = static_cast<int>(limits.maxTessellationControlPerVertexOutputComponents),
+        .max_tess_control_texture_image_units = 16,
+        .max_tess_control_uniform_components = 1024,
+        .max_tess_control_total_output_components = 4096,
+        .max_tess_evaluation_input_components = static_cast<int>(limits.maxTessellationEvaluationInputComponents),
+        .max_tess_evaluation_output_components = static_cast<int>(limits.maxTessellationEvaluationOutputComponents),
+        .max_tess_evaluation_texture_image_units = 16,
+        .max_tess_evaluation_uniform_components = 1024,
+        .max_tess_patch_components = 120,
+        .max_patch_vertices = 32,
+        .max_tess_gen_level = 64,
+        .max_viewports = static_cast<int>(limits.maxViewports),
+        .max_vertex_atomic_counters = 0,
+        .max_tess_control_atomic_counters = 0,
+        .max_tess_evaluation_atomic_counters = 0,
+        .max_geometry_atomic_counters = 0,
+        .max_fragment_atomic_counters = 8,
+        .max_combined_atomic_counters = 8,
+        .max_atomic_counter_bindings = 1,
+        .max_vertex_atomic_counter_buffers = 0,
+        .max_tess_control_atomic_counter_buffers = 0,
+        .max_tess_evaluation_atomic_counter_buffers = 0,
+        .max_geometry_atomic_counter_buffers = 0,
+        .max_fragment_atomic_counter_buffers = 1,
+        .max_combined_atomic_counter_buffers = 1,
+        .max_atomic_counter_buffer_size = 16384,
+        .max_transform_feedback_buffers = 4,
+        .max_transform_feedback_interleaved_components = 64,
+        .max_cull_distances = static_cast<int>(limits.maxCullDistances),
+        .max_combined_clip_and_cull_distances = static_cast<int>(limits.maxCombinedClipAndCullDistances),
+        .max_samples = 4,
+        .max_mesh_output_vertices_nv = 256,
+        .max_mesh_output_primitives_nv = 512,
+        .max_mesh_work_group_size_x_nv = 32,
+        .max_mesh_work_group_size_y_nv = 1,
+        .max_mesh_work_group_size_z_nv = 1,
+        .max_task_work_group_size_x_nv = 32,
+        .max_task_work_group_size_y_nv = 1,
+        .max_task_work_group_size_z_nv = 1,
+        .max_mesh_view_count_nv = 4,
+        .max_mesh_output_vertices_ext = 256,
+        .max_mesh_output_primitives_ext = 512,
+        .max_mesh_work_group_size_x_ext = 32,
+        .max_mesh_work_group_size_y_ext = 1,
+        .max_mesh_work_group_size_z_ext = 1,
+        .max_task_work_group_size_x_ext = 32,
+        .max_task_work_group_size_y_ext = 1,
+        .max_task_work_group_size_z_ext = 1,
+        .max_mesh_view_count_ext = 4,
+        .maxDualSourceDrawBuffersEXT = 1,
+        .limits =
+        {
+            .non_inductive_for_loops = true,
+            .while_loops = true,
+            .do_while_loops = true,
+            .general_uniform_indexing = true,
+            .general_attribute_matrix_vector_indexing = true,
+            .general_varying_indexing = true,
+            .general_sampler_indexing = true,
+            .general_variable_indexing = true,
+            .general_constant_matrix_vector_indexing = true
+        }
+    };
+
+    return resource;
+}
+
+glslang_input_t Vulkan_Struct_Initializers::glslang_input(VkShaderStageFlagBits shader_stage, std::string const& source_code, glslang_resource_t const* glslang_resource)
+{
+    glslang_stage_t stage;
+    switch (shader_stage)
+    {
+        case VK_SHADER_STAGE_VERTEX_BIT:
+            stage = GLSLANG_STAGE_VERTEX;
+            break;
+
+        case VK_SHADER_STAGE_FRAGMENT_BIT:
+            stage = GLSLANG_STAGE_FRAGMENT;
+            break;
+
+        default:
+            stage = GLSLANG_STAGE_VERTEX;
+    }
+
+    glslang_input_t input =
+    {
+        .language = GLSLANG_SOURCE_GLSL,
+        .stage = stage,
+        .client = GLSLANG_CLIENT_VULKAN,
+        .client_version = GLSLANG_TARGET_VULKAN_1_3,
+        .target_language = GLSLANG_TARGET_SPV,
+        .target_language_version = GLSLANG_TARGET_SPV_1_6,
+        .code = source_code.c_str(),
+        .default_version = 100,
+        .default_profile = GLSLANG_NO_PROFILE,
+        .force_default_version_and_profile = false,
+        .forward_compatible = false,
+        .messages = GLSLANG_MSG_DEFAULT_BIT,
+        .resource = glslang_resource,
+    };
+
+    return input;
+}
+
+glslang_spv_options_t Vulkan_Struct_Initializers::glslang_spv_options()
+{
+    glslang_spv_options_t options =
+    {
+        .generate_debug_info = true,
+        .strip_debug_info = false,
+        .disable_optimizer = false,
+        .optimize_size = true,
+        .disassemble = false,
+        .validate = true,
+        .emit_nonsemantic_shader_debug_info = false,
+        .emit_nonsemantic_shader_debug_source = false,
+    };
+
+    return options;
 }

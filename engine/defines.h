@@ -6,8 +6,10 @@
 #include <windows.h>
 #include <algorithm>
 #include <array>
+#include <cassert>
 #include <cstdarg>
 #include <cstdint>
+#include <filesystem>
 #include <iostream>
 #include <map>
 #include <memory>
@@ -18,6 +20,10 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+
+#include <glslang/Include/glslang_c_interface.h>
+
+namespace fs = std::filesystem;
 
 using i16 = int16_t;
 using i32 = int32_t;
@@ -51,3 +57,43 @@ struct Window_Description
 };
 
 Window_Description window_description;
+
+// CppCon 2015: Andrei Alexandrescu “Declarative Control Flow" https://www.youtube.com/watch?v=WjTrfoiB0MQ
+#ifndef ANONYMOUS_VARIABLE
+#define CONCATENATE_IMPL(s1, s2) s1##s2
+#define CONCATENATE(s1, s2) CONCATENATE_IMPL(s1, s2)
+#ifdef __COUNTER__
+#define ANONYMOUS_VARIABLE(str) CONCATENATE(str, __COUNTER__)
+# else
+#define ANONYMOUS_VARIABLE(str) CONCATENATE(str, __LINE__)
+#endif
+#endif
+
+enum class Scope_Guard_On_Exit
+{
+};
+
+template <typename Func>
+class Scope_Guard
+{
+public:
+    explicit Scope_Guard(T&& function) : function(std ::move(function))
+    {
+    }
+
+    ~Scope_Guard()
+    {
+        function();
+    }
+
+private:
+    Func function;
+};
+
+template<typename Func>
+Scope_Guard<Func> operator+(ScopeGuardOnExit, Func&& function)
+{
+    return ScopeGuard<T>(std::forward<T>(function));
+}
+
+#define SCOPE_EXIT auto ANONYMOUS_VARIABLE(SCOPE_EXIT_STATE) = Scope_Guard_On_Exit() + [&]() noexcept

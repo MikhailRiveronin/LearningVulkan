@@ -31,11 +31,8 @@ public:
 
 
 private:
-    std::array<VkDescriptorSet, FRAMES_IN_FLIGHT> g_buffer_descriptor_sets;
 
-    std::array<Buffer, FRAMES_IN_FLIGHT> world_view_proj_buffers;
-    std::array<Buffer, FRAMES_IN_FLIGHT> material_data_buffers;
-    std::array<Buffer, FRAMES_IN_FLIGHT> draw_data_buffers;
+    std::vector<Texture> textures;
 
     struct
     {
@@ -43,12 +40,43 @@ private:
         {
             VkPipeline handle;
             VkPipelineLayout layout;
-            VkRenderPass render_pass;
-            u32 subpass;
+            std::array<VkDescriptorSet, FRAMES_IN_FLIGHT> descriptor_sets;
         } g_buffer;
 
-
+        struct
+        {
+            VkPipeline handle;
+            VkPipelineLayout layout;
+            std::array<VkDescriptorSet, FRAMES_IN_FLIGHT> descriptor_sets;
+        } deferred_shading;
     } pipelines;
+
+    struct
+    {
+        Attachment position;
+        Attachment normal;
+        Attachment albedo;
+    } g_buffer_attachments;
+
+    struct
+    {
+        glm::mat4 world;
+        glm::mat4 view;
+        glm::mat4 proj;
+    } ubo_data;
+    std::array<Buffer, FRAMES_IN_FLIGHT> ubos;
+
+    struct
+    {
+        u32 texture_index;
+    } material_data;
+    std::array<Buffer, FRAMES_IN_FLIGHT> material_data_buffers;
+
+    struct
+    {
+        u32 material_index;
+    } material_data;
+    std::array<Buffer, FRAMES_IN_FLIGHT> draw_data_buffers;
 
 
 
@@ -64,6 +92,9 @@ private:
     void create_attachments();
     void create_framebuffer();
     void create_renderpass();
+    void create_ubos();
+    void update_ubo();
+    void record_graphics_command_buffer();
 
 
 
@@ -75,7 +106,7 @@ private:
 
 
     std::vector<Mesh> meshes;
-    std::vector<Texture> textures;
+    // std::vector<Texture> textures;
     std::vector<Material> materials;
     std::vector<RenderObject> renderObjects;
     std::vector<FrameResource> frameResources;
@@ -226,18 +257,45 @@ void Test::create_pipelines()
     // G-buffer
     {
         VkDescriptorSetLayout descriptor_set_layout;
-        std::vector<VkDescriptorSetLayoutBinding> descriptor_set_layout_bindings = { Vulkan_Struct_Initializers::descriptor_set_layout_binding(0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_VERTEX_BIT) /* world-view-proj */, Vulkan_Struct_Initializers::descriptor_set_layout_binding(1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT) /* material data */, Vulkan_Struct_Initializers::descriptor_set_layout_binding(2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT) /* draw data */, Vulkan_Struct_Initializers::descriptor_set_layout_binding(3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) /* large texture description array */ };
-        auto descriptor_set_layout_create_info = Vulkan_Struct_Initializers::descriptor_set_layout_create_info(descriptor_set_layout_bindings);
+        std::vector<VkDescriptorSetLayoutBinding> descriptor_set_layout_bindings;
+        descriptor_set_layout_bindings.push_back(Vulkan_Struct_Initializers::descriptor_set_layout_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT) /* world-view-proj */);
+        descriptor_set_layout_bindings.push_back(Vulkan_Struct_Initializers::descriptor_set_layout_binding(1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT) /* material data */);
+        descriptor_set_layout_bindings.push_back(Vulkan_Struct_Initializers::descriptor_set_layout_binding(2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT) /* draw data */);
+        descriptor_set_layout_bindings.push_back(Vulkan_Struct_Initializers::descriptor_set_layout_binding(3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, textures.size()) /* large texture description array */);
+
+        std::vector<VkDescriptorBindingFlags> descriptor_binding_flags;
+        descriptor_binding_flags.push_back(0);
+        descriptor_binding_flags.push_back(1);
+        descriptor_binding_flags.push_back(2);
+        descriptor_binding_flags.push_back(VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT);
+        auto descriptor_set_layout_binding_flags_create_info = Vulkan_Struct_Initializers::descriptor_set_layout_binding_flags_create_info(descriptor_binding_flags);
+
+        auto descriptor_set_layout_create_info = Vulkan_Struct_Initializers::descriptor_set_layout_create_info(descriptor_set_layout_bindings, descriptor_set_layout_binding_flags_create_info);
         VK_CHECK(vkCreateDescriptorSetLayout(context.device->handle, &descriptor_set_layout_create_info, context.allocation_callbacks, &descriptor_set_layout));
-    
-        std::vector<VkDescriptorSetLayout> set_layouts(FRAMES_IN_FLIGHT, descriptor_set_layout);
-        auto descriptor_set_allocate_info = Vulkan_Struct_Initializers::descriptor_set_allocate_info(context.descriptor_pool, set_layouts);
-        VK_CHECK(vkAllocateDescriptorSets(context.device->handle, &descriptor_set_allocate_info, g_buffer_descriptor_sets.data()));
+
+        std::array<u32, FRAMES_IN_FLIGHT> descriptor_counts;
+        descriptor_counts.fill(textures.size());
+        auto descriptor_set_variable_descriptor_count_allocate_info = Vulkan_Struct_Initializers::descriptor_set_variable_descriptor_count_allocate_info(descriptor_counts);
+
+        std::array<VkDescriptorSetLayout, FRAMES_IN_FLIGHT> set_layouts;
+        set_layouts.fill(descriptor_set_layout);
+        auto descriptor_set_allocate_info = Vulkan_Struct_Initializers::descriptor_set_allocate_info(context.descriptor_pool, set_layouts, &descriptor_set_variable_descriptor_count_allocate_info);
+        VK_CHECK(vkAllocateDescriptorSets(context.device->handle, &descriptor_set_allocate_info, pipelines.g_buffer.descriptor_sets.data()));
+
+        std::vector<VkDescriptorImageInfo> descriptor_image_infos(textures.size());
+        for (u32 i = 0; i < descriptor_image_infos.size(); ++i)
+        {
+            descriptor_image_infos[i] = Vulkan_Struct_Initializers::descriptor_image_info(textures[i].image_view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, textures[i].sampler);
+        }
 
         for (u32 i = 0; i < FRAMES_IN_FLIGHT; ++i)
         {
-            std::vector<VkWriteDescriptorSet> descriptor_writes = { Vulkan_Struct_Initializers::write_descriptor_set(g_buffer_descriptor_sets[i], 0, Vulkan_Struct_Initializers::descriptor_buffer_info(world_view_proj_buffers[i].handle)), Vulkan_Struct_Initializers::write_descriptor_set(g_buffer_descriptor_sets[i], 0, Vulkan_Struct_Initializers::descriptor_buffer_info(material_data_buffers[i].handle)), Vulkan_Struct_Initializers::write_descriptor_set(g_buffer_descriptor_sets[i], 0, Vulkan_Struct_Initializers::descriptor_buffer_info(draw_data_buffers[i].handle)), Vulkan_Struct_Initializers::write_descriptor_set(g_buffer_descriptor_sets[i], 0, Vulkan_Struct_Initializers::descriptor_image_info( /* of all textures */)) };
-            vkUpdateDescriptorSets(context.device->handle, descriptor_writes.size(), descriptor_writes.data(), 0, nullptr);
+            std::vector<VkWriteDescriptorSet> descriptor_writes;
+            descriptor_writes.push_back(Vulkan_Struct_Initializers::write_descriptor_set(pipelines.g_buffer.descriptor_sets[i], 0, Vulkan_Struct_Initializers::descriptor_buffer_info(ubos[i].handle)));
+            descriptor_writes.push_back(Vulkan_Struct_Initializers::write_descriptor_set(pipelines.g_buffer.descriptor_sets[i], 1, Vulkan_Struct_Initializers::descriptor_buffer_info(material_data_buffers[i].handle), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER));
+            descriptor_writes.push_back(Vulkan_Struct_Initializers::write_descriptor_set(pipelines.g_buffer.descriptor_sets[i], 2, Vulkan_Struct_Initializers::descriptor_buffer_info(draw_data_buffers[i].handle), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER));
+            descriptor_writes.push_back(Vulkan_Struct_Initializers::write_descriptor_set(pipelines.g_buffer.descriptor_sets[i], 4, descriptor_image_infos);
+            vkUpdateDescriptorSets(context.device->handle, descriptor_writes.size(), descriptor_writes.data(), 0, nullptr));
         }
 
         // Pipeline
@@ -277,7 +335,7 @@ void Test::create_pipelines()
         auto pipeline_layout_create_info = Vulkan_Struct_Initializers::pipeline_layout_create_info(descriptor_set_layouts);
         VK_CHECK(vkCreatePipelineLayout(context.device->handle, &pipeline_layout_create_info, context.allocation_callbacks, &pipelines.g_buffer.layout));
 
-        auto graphics_pipeline_create_info = Vulkan_Struct_Initializers::graphics_pipeline_create_info(pipeline_shader_stage_create_infos, &pipeline_input_assembly_state_create_info, &pipeline_tessellation_state_create_info, &pipeline_viewport_state_create_info, &pipeline_rasterization_state_create_info, &pipeline_multisample_state_create_info, &pipeline_depth_stencil_state_create_info, &pipeline_color_blend_state_create_info, &pipeline_dynamic_state_create_info, pipelines.g_buffer.layout, pipelines.g_buffer.render_pass, pipelines.g_buffer.subpass);
+        auto graphics_pipeline_create_info = Vulkan_Struct_Initializers::graphics_pipeline_create_info(pipeline_shader_stage_create_infos, &pipeline_input_assembly_state_create_info, &pipeline_tessellation_state_create_info, &pipeline_viewport_state_create_info, &pipeline_rasterization_state_create_info, &pipeline_multisample_state_create_info, &pipeline_depth_stencil_state_create_info, &pipeline_color_blend_state_create_info, &pipeline_dynamic_state_create_info, pipelines.g_buffer.layout, context.render_pass, 0);
 
         VK_CHECK(vkCreateGraphicsPipelines(context.device->handle, VK_NULL_HANDLE, 1, &graphics_pipeline_create_info, context.allocation_callbacks, &pipelines.g_buffer.handle));
 
@@ -285,6 +343,117 @@ void Test::create_pipelines()
         vkDestroyShaderModule(context.device->handle, shader_modules[1], context.allocation_callbacks);
     }
 
+    // Deferred shading
+    {
+        VkDescriptorSetLayout descriptor_set_layout;
+        std::vector<VkDescriptorSetLayoutBinding> descriptor_set_layout_bindings;
+        descriptor_set_layout_bindings.push_back(Vulkan_Struct_Initializers::descriptor_set_layout_binding(0, VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, VK_SHADER_STAGE_FRAGMENT_BIT));
+        descriptor_set_layout_bindings.push_back(Vulkan_Struct_Initializers::descriptor_set_layout_binding(1, VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, VK_SHADER_STAGE_FRAGMENT_BIT));
+        descriptor_set_layout_bindings.push_back(Vulkan_Struct_Initializers::descriptor_set_layout_binding(2, VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, VK_SHADER_STAGE_FRAGMENT_BIT));
+        auto descriptor_set_layout_create_info = Vulkan_Struct_Initializers::descriptor_set_layout_create_info(descriptor_set_layout_bindings);
+        VK_CHECK(vkCreateDescriptorSetLayout(context.device->handle, &descriptor_set_layout_create_info, context.allocation_callbacks, &descriptor_set_layout));
 
+        std::vector<VkDescriptorSetLayout> set_layouts(FRAMES_IN_FLIGHT, descriptor_set_layout);
+        auto descriptor_set_allocate_info = Vulkan_Struct_Initializers::descriptor_set_allocate_info(context.descriptor_pool, set_layouts);
+        VK_CHECK(vkAllocateDescriptorSets(context.device->handle, &descriptor_set_allocate_info, pipelines.deferred_shading.descriptor_sets.data()));
 
+        for (u32 i = 0; i < FRAMES_IN_FLIGHT; ++i)
+        {
+            std::vector<VkWriteDescriptorSet> descriptor_writes;
+            descriptor_writes.push_back(Vulkan_Struct_Initializers::write_descriptor_set(pipelines.deferred_shading.descriptor_sets[i], 0, Vulkan_Struct_Initializers::descriptor_image_info(g_buffer_attachments.position)));
+            descriptor_writes.push_back(Vulkan_Struct_Initializers::write_descriptor_set(pipelines.deferred_shading.descriptor_sets[i], 1, Vulkan_Struct_Initializers::descriptor_image_info(g_buffer_attachments.normal)));
+            descriptor_writes.push_back(Vulkan_Struct_Initializers::write_descriptor_set(pipelines.deferred_shading.descriptor_sets[i], 2, Vulkan_Struct_Initializers::descriptor_image_info(g_buffer_attachments.albedo)));
+            vkUpdateDescriptorSets(context.device->handle, descriptor_writes.size(), descriptor_writes.data(), 0, nullptr);
+        }
+
+        // Pipeline
+        std::vector<VkPipelineShaderStageCreateInfo> pipeline_shader_stage_create_infos(2);
+        std::vector<VkShaderModule> shader_modules(2);
+        {
+            auto code = load_shader_code("deferred_shading.vert.spv");
+            auto shader_module_create_info = Vulkan_Struct_Initializers::shader_module_create_info(code);
+            VK_CHECK(vkCreateShaderModule(context.device->handle, &shader_module_create_info, context.allocation_callbacks, &shader_modules[0]));
+            pipeline_shader_stage_create_infos[0] = Vulkan_Struct_Initializers::pipeline_shader_stage_create_info(VK_SHADER_STAGE_VERTEX_BIT, shader_modules[0]);
+        }
+        {
+            auto code = load_shader_code("deferred_shading.frag.spv");
+            auto shader_module_create_info = Vulkan_Struct_Initializers::shader_module_create_info(code);
+            VK_CHECK(vkCreateShaderModule(context.device->handle, &shader_module_create_info, context.allocation_callbacks, &shader_modules[0]));
+            pipeline_shader_stage_create_infos[1] = Vulkan_Struct_Initializers::pipeline_shader_stage_create_info(VK_SHADER_STAGE_FRAGMENT_BIT, shader_modules[1]);
+        }
+
+        auto pipeline_input_assembly_state_create_info = Vulkan_Struct_Initializers::pipeline_input_assembly_state_create_info();
+        auto pipeline_tessellation_state_create_info = Vulkan_Struct_Initializers::pipeline_tessellation_state_create_info();
+
+        std::vector<VkViewport> viewports = { Vulkan_Struct_Initializers::viewport(context.swapchain.extent.width, context.swapchain.extent.height) };
+        std::vector<VkRect2D> scissors = { Vulkan_Struct_Initializers::scissor(context.swapchain.extent.width, context.swapchain.extent.height) };
+        auto pipeline_viewport_state_create_info = Vulkan_Struct_Initializers::pipeline_viewport_state_create_info(viewports, scissors);
+
+        auto pipeline_rasterization_state_create_info = Vulkan_Struct_Initializers::pipeline_rasterization_state_create_info();
+        auto pipeline_multisample_state_create_info = Vulkan_Struct_Initializers::pipeline_multisample_state_create_info();
+        auto pipeline_depth_stencil_state_create_info = Vulkan_Struct_Initializers::pipeline_depth_stencil_state_create_info();
+
+        std::vector<VkPipelineColorBlendAttachmentState> color_blend_attachment_states = { Vulkan_Struct_Initializers::pipeline_color_blend_attachment_state() };
+        auto pipeline_color_blend_state_create_info = Vulkan_Struct_Initializers::pipeline_color_blend_state_create_info(color_blend_attachment_states);
+
+        std::vector<VkDynamicState> dynamic_states = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
+        auto pipeline_dynamic_state_create_info = Vulkan_Struct_Initializers::pipeline_dynamic_state_create_info(dynamic_states);
+
+        std::vector<VkDescriptorSetLayout> descriptor_set_layouts = { descriptor_set_layout };
+        auto pipeline_layout_create_info = Vulkan_Struct_Initializers::pipeline_layout_create_info(descriptor_set_layouts);
+        VK_CHECK(vkCreatePipelineLayout(context.device->handle, &pipeline_layout_create_info, context.allocation_callbacks, &pipelines.deferred_shading.layout));
+
+        auto graphics_pipeline_create_info = Vulkan_Struct_Initializers::graphics_pipeline_create_info(pipeline_shader_stage_create_infos, &pipeline_input_assembly_state_create_info, &pipeline_tessellation_state_create_info, &pipeline_viewport_state_create_info, &pipeline_rasterization_state_create_info, &pipeline_multisample_state_create_info, &pipeline_depth_stencil_state_create_info, &pipeline_color_blend_state_create_info, &pipeline_dynamic_state_create_info, pipelines.deferred_shading.layout, context.render_pass, 1);
+
+        VK_CHECK(vkCreateGraphicsPipelines(context.device->handle, VK_NULL_HANDLE, 1, &graphics_pipeline_create_info, context.allocation_callbacks, &pipelines.deferred_shading.handle));
+
+        vkDestroyShaderModule(context.device->handle, shader_modules[0], context.allocation_callbacks);
+        vkDestroyShaderModule(context.device->handle, shader_modules[1], context.allocation_callbacks);
+    }
+}
+
+void Test::create_ubos()
+{
+    for (auto& ubo : ubos)
+    {
+        create_buffer(context, sizeof(ubo_data), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT, ubo);
+    }
+}
+
+void Test::update_ubo()
+{
+    ubo_data.world = glm::mat4(1.f);
+    ubo_data.view = camera.matrices.view;
+    ubo_data.proj = camera.matrices.proj;
+    memcpy(ubos[context.current_frame_index].allocation_info.pMappedData, &ubo_data, sizeof(ubo_data));
+}
+
+void Test::record_graphics_command_buffer()
+{
+    // auto command_buffer = context.graphics_command_buffers[context.current_frame_index];
+
+    std::vector<VkClearValue> clear_values(4);
+    clear_values[0].color = {{ 0.f, 0.f, 0.f, 1.f }};
+    clear_values[0].color = {{ 0.f, 0.f, 0.f, 1.f }};
+    clear_values[0].color = {{ 0.f, 0.f, 0.f, 1.f }};
+    clear_values[0].depthStencil = { 1.f, 0 };
+    auto render_pass_begin_info = Vulkan_Struct_Initializers::render_pass_begin_info(context.render_pass, context.framebuffers[context.current_frame_index], context.swapchain.extent.width, context.swapchain.extent.height, clear_values);
+    vkCmdBeginRenderPass(context.graphics_command_buffers[context.current_frame_index], &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
+
+    auto viewport = Vulkan_Struct_Initializers::viewport(context.swapchain.extent.width, context.swapchain.extent.height);
+    vkCmdSetViewport(context.graphics_command_buffers[context.current_frame_index], 0, 1, &viewport);
+
+    auto scissor = Vulkan_Struct_Initializers::scissor(context.swapchain.extent.width, context.swapchain.extent.height);
+    vkCmdSetScissor(context.graphics_command_buffers[context.current_frame_index], 0, 1, &scissor);
+
+    vkCmdBindPipeline(context.graphics_command_buffers[context.current_frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelines.g_buffer.handle);
+    vkCmdBindDescriptorSets(context.graphics_command_buffers[context.current_frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelines.g_buffer.layout, 0, 1, &pipelines.g_buffer.descriptor_sets[context.current_frame_index], 0, nullptr);
+    // Scene draw call
+    vkCmdNextSubpass(context.graphics_command_buffers[context.current_frame_index], VK_SUBPASS_CONTENTS_INLINE);
+    vkCmdBindPipeline(context.graphics_command_buffers[context.current_frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelines.deferred_shading.handle);
+    vkCmdBindDescriptorSets(context.graphics_command_buffers[context.current_frame_index], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelines.deferred_shading.layout, 0, 1, &pipelines.deferred_shading.descriptor_sets[context.current_frame_index], 0, nullptr);
+    vkCmdDraw(context.graphics_command_buffers[context.current_frame_index], 3, 1, 0, 0); //Quad draw call
+    // Draw ui
+
+    vkCmdEndRenderPass(context.graphics_command_buffers[context.current_frame_index]);
 }

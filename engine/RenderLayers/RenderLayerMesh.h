@@ -1,7 +1,7 @@
 #pragma once
 
 #include "RenderLayerBase.h"
-#include "Structures.h"
+#include "vulkan_classes.h"
 
 class RenderLayerMesh : public RenderLayerBase {
 public:

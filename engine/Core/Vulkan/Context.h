@@ -2,7 +2,7 @@
 
 #include "Defines.h"
 #include "CommandBuffer.h"
-#include "Structures.h"
+#include "vulkan_classes.h"
 
 #include <vulkan/vulkan.h>
 #include <vector>

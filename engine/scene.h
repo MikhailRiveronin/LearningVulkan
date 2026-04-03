@@ -2,6 +2,58 @@
 
 #include "defines.h"
 
+constexpr const u32 MAX_NODE_LEVEL = 16;
+
+struct Hierarchy
+{
+    i32 parent = -1;
+    i32 first_child = -1;
+    i32 next_sibling = -1;
+    i32 last_sibling = -1;
+    i32 level = 0;
+};
+
+// Left-child right-sibling binary tree
+class Scene
+{
+public:
+    std::vector<Hierarchy> hierarchies;
+    std::vector<glm::mat4> local_transforms;
+    std::vector<glm::mat4> global_transforms;
+
+    std::unordered_map<u32, u32> node_to_mesh;
+    std::unordered_map<u32, u32> node_to_material;
+    std::unordered_map<u32, u32> node_to_name;
+
+    std::vector<std::string> node_names;
+    std::vector<std::string> material_names;
+
+    std::vector<int> changed_at_this_frame[MAX_NODE_LEVEL];
+
+    i32 add_node(i32 parent, i32 level);
+    void save_to_file(char const* filename) const;
+    void load_from_file(char const* filename);
+    void mark_as_changed(i32 node);
+    void recalculate_global_transforms();
+};
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 #include "render_queue.h"
 #include "renderer.h"
 #include "scene_node.h"

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Defines.h"
-#include "Structures.h"
+#include "vulkan_classes.h"
 
 #include <vulkan/vulkan.h>
 #include <vector>

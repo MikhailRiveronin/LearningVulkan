@@ -3,7 +3,7 @@
 #include "defines.h"
 
 #include "EventManager.h"
-#include "structures.h"
+#include "vulkan_classes.h"
 #include "movable.h"
 #include "object.h"
 

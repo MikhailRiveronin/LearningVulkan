@@ -1,18 +1,138 @@
-#include "Utils.h"
+#include "utils.h"
 #include "vulkan_struct_initializers.h"
-#include "scene_manager.h"
+#include "scene.h"
 
 #include "mesh.h"
 #include "mesh_manager.h"
 // #include "texture.h"
 // #include "texture_manager.h"
 
-#include "structures.h"
+#include "vulkan_classes.h"
 
 #include "third_party/tiny_gltf.h"
 
 #include "third_party/stb_image.h"
 #include <fstream>
+
+
+namespace engine
+{
+
+
+bool has_extension(std::string const& filename, std::string const& extension)
+{
+    fs::path filepath(filename);
+    return filepath.extension() == extension;
+}
+
+std::string read_GLSL_from_file(std::string const& filename)
+{
+    FILE* file = fopen(filename.c_str(), "r");
+    if (!file)
+    {
+        // TODO: Handle error
+        return std::string();
+    }
+
+    fseek(file, 0, SEEK_END);
+    auto file_size_in_bytes = ftell(file);
+    fseek(file, 0, SEEK_SET);
+
+    char buffer[file_size_in_bytes];
+    auto bytes_read = fread(buffer, 1, file_size_in_bytes, file);
+
+    fclose(file);
+
+    buffer[bytes_read] = '\0';
+    std::string source(buffer);
+
+    std::string literal = "#include <";
+    while ((auto pos = code.find(literal)) != code.npos)
+    {
+        auto offset = pos + literal.length();
+        auto closing_bracket = source.find('>', offset);
+        auto count = closing_bracket - offset - 1;
+
+        std::string include_name = source.substr(offset, count);
+        std::string include = read_GLSL_from_file(include_name.c_str());
+        source.replace(pos, closing_bracket - pos + 1, include.c_str());
+    }
+
+    return source;
+}
+
+std::vector<u32 const> compile_GLSL_to_SPIRV(VkShaderStageFlagBits shader_stage, std::string const& source_code, glslang_resource_t const* glslang_resource)
+{
+    auto input = Vulkan_Struct_Initializers::glslang_input(shader_stage, source_code, glslang_resource);
+    auto shader = glslang_shader_create(&input);
+    SCOPE_EXIT
+    {
+        glslang_shader_delete(shader);
+    };
+
+    if (!glslang_shader_preprocess(shader, &input))
+    {
+        // TODO: Handle error
+    }
+
+    if (!glslang_shader_parse(shader, &input))
+    {
+        // TODO: Handle error
+    }
+
+    auto program = glslang_program_create();
+    SCOPE_EXIT
+    {
+        glslang_program_delete(program);
+    };
+
+    glslang_program_add_shader(program, shader);
+    if (!glslang_program_link(program, GLSLANG_MSG_SPV_RULES_BIT | GLSLANG_MSG_VULKAN_RULES_BIT))
+    {
+        // TODO: Handle error
+    }
+
+    auto options = Vulkan_Struct_Initializers::glslang_spv_options();
+    glslang_program_SPIRV_generate_with_options(program, input.stage, &options);
+
+    auto spirv = reinterpret_cast<u32 const*>(glslang_program_SPIRV_get_ptr(program));
+    auto count = glslang_program_SPIRV_get_size(program);
+    return std::vector<u32>(spirv, spirv + count);
+}
+
+Shader_Stage shader_stage_from_filename(std::string const& filename)
+{
+    if (has_extension(filename, ".vert"))
+    {
+        return Shader_Stage::VERTEX;
+    }
+
+    if (has_extension(filename, ".frag"))
+    {
+        return Shader_Stage::FRAGMENT;
+    }
+
+    if (has_extension(filename, ".comp"))
+    {
+        return Shader_Stage::COMPUTE
+    }
+
+    return Shader_Stage::VERTEX;
+}
+
+RAII_Wrapper<Shander_Module_Handle> create_shader_module(Context const& context, std::string const& filename)
+{
+    auto stage = shader_stage_from_filename(filename);
+    auto source = read_GLSL_from_file(filename);
+    return context.create_shader_module_from_GLSL(stage, source);
+}
+
+
+
+
+
+
+
 
 std::vector<char> load_shader_code(std::string const& filename)
 {
@@ -40,7 +160,7 @@ void create_buffer(Context const& context, VkDeviceSize size, VkBufferUsageFlags
 
 void create_staging_buffer(Context const& context, VkDeviceSize size, Buffer& buffer)
 {
-    create_buffer(context, size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT, buffer);    
+    create_buffer(context, size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT, buffer);
 }
 
 void destroy_buffer(Context const& context, Buffer& buffer)
@@ -471,7 +591,7 @@ void createCubeTexture(
     transitionImageLayout(context, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 }
 
-void load_gltf(Context const& context, std::string const& filename)
+void load_gltf(Context const& context, std::string const& filename, std::vector<Texture>& textures, Mesh_Data& mesh_data)
 {
     tinygltf::TinyGLTF loader;
     tinygltf::Model model;
@@ -483,6 +603,35 @@ void load_gltf(Context const& context, std::string const& filename)
         LOG_ERROR("%s (%u): %s", __FILE__, __LINE__, errors.c_str());
         throw std::runtime_error(errors);
     }
+
+    mesh_data.meshes.reserve(model.meshes.size());
+
+
+
+
+
+
+
+
+
+
+
+
+    // Parse textures
+    for (u32 texture_index = 0; texture_index < model.textures.size(); ++texture_index)
+    {
+        Texture texture;
+        u32 width = model.images[model.textures[texture_index].source].width;
+        u32 height = model.images[model.textures[texture_index].source].height;
+        void const* data = reinterpret_cast<void const*>(model.images[model.textures[texture_index].source].image.data());
+        create_texture(context, VK_FORMAT_R8G8B8A8_SRGB, width, height, data, texture);
+        textures.push_back(texture);
+    }
+
+
+
+
+
 
     
 
@@ -910,3 +1059,36 @@ void load_gltf(Context const& context, std::string const& filename)
     }
 
 }
+
+void save_strings(FILE* file, std::vector<std::string> const& strings)
+{
+    u32 size = static_cast<u32>(strings.size());
+    fwrite(&size, sizeof(size), 1, file);
+
+    for (auto& string : strings)
+    {
+        u32 length = static_cast<u32>(string.length());
+        fwrite(&length, sizeof(length), 1, file);
+        fwrite(string.c_str(), length + 1, 1, file);
+    }
+}
+
+void load_strings(FILE* file, std::vector<std::string>& strings)
+{
+    u32 size;
+    fread(&size, sizeof(size), 1, file);
+    strings.resize(size);
+
+    std::vector<char> inBytes;
+    for (auto& string : strings)
+    {
+        u32 length;
+        fread(&length, sizeof(length), 1, file);
+
+        std::vector<char> data(length + 1);
+        fread(data.data(), length + 1, 1, file);
+        string = std::string(data.data());
+    }
+}
+
+} // namespace engine

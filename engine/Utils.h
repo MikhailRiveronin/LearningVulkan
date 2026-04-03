@@ -1,14 +1,20 @@
 #pragma once
 
-#include "Defines.h"
+#include "defines.h"
+
 #include "Logger.h"
-#include "structures.h"
+#include "vulkan_classes.h"
 
 #include <vulkan/vulkan.h>
 
 #include <string>
 #include <vector>
 #include <unordered_map>
+
+#include "mesh.h"
+
+namespace engine
+{
 
 // #define VK_CHECK(result)                                       \
 //     do {                                                              \
@@ -17,6 +23,33 @@
 //             throw std::runtime_error("Vulkan command failed");        \
 //         }                                                             \
 //     } while (0)
+
+
+
+
+
+
+bool has_extension(std::string const& filename, std::string const& extension);
+std::string read_GLSL_from_file(std::string const& filename);
+std::vector<u32 const> compile_GLSL_to_SPIRV(VkShaderStageFlagBits shader_stage, std::string const& source_code, glslang_resource_t const* glslang_resource);
+
+
+
+
+Shader_Stage shader_stage_from_filename(const char* filename);
+
+bool compile_shader_from_source(Shader_Stage stage, char const* code, );
+
+
+
+
+
+RAII_Wrapper<Shander_Module_Handle> create_shader_module(Context const& context, std::string const& filename);
+
+
+
+
+
 
 void create_buffer(Context const& context, VkDeviceSize size, VkBufferUsageFlags usage, VmaAllocationCreateFlags allocation_create_flags, Buffer& buffer);
 void create_staging_buffer(Context const& context, VkDeviceSize size, Buffer& buffer);
@@ -64,4 +97,9 @@ void createCubeTexture(
     Image& image);
 
 
-void load_gltf(Context const& context, std::string const& filename);
+void load_gltf(Context const& context, std::string const& filename, std::vector<Texture>& textures, Mesh_Data& mesh_data);
+
+void save_strings(FILE* file, std::vector<std::string> const& strings);
+void load_strings(FILE* file, std::vector<std::string>& strings);
+
+} // namespace engine

@@ -6,6 +6,14 @@
 class Vulkan_Struct_Initializers
 {
 public:
+    static VkPhysicalDeviceDepthStencilResolveProperties physical_device_depth_stencil_resolve_properties();
+    static VkPhysicalDeviceDriverProperties physical_device_driver_properties(void* next = nullptr);
+    static VkPhysicalDeviceVulkan12Properties physical_device_vulkan_1_2_properties(void* next = nullptr);
+    static VkPhysicalDeviceProperties2 physical_device_properties_2(void* next = nullptr);
+
+
+
+
     static VkDebugUtilsMessengerCreateInfoEXT debug_utils_messenger_create_info(PFN_vkDebugUtilsMessengerCallbackEXT user_callback);
     static VkApplicationInfo application_info();
     static VkInstanceCreateInfo instance_create_info(VkApplicationInfo const* app_info, std::vector<char const*> const& enabled_layer_names, std::vector<char const*> const& enabled_extension_names, void const* next = nullptr);
@@ -84,7 +92,7 @@ public:
     
 
 
-    static VkShaderModuleCreateInfo shader_module_create_info(std::vector<u32 const> const& byte_code);
+    static VkShaderModuleCreateInfo shader_module_create_info(size_t code_size, void const* code);
     static VkPipelineShaderStageCreateInfo pipeline_shader_stage_create_info(VkShaderStageFlagBits stage, VkShaderModule module);
     static VkVertexInputBindingDescription vertex_input_binding_description(u32 binding, u32 stride);
     static VkVertexInputAttributeDescription vertex_input_attribute_description(u32 location, u32 binding, VkFormat format, u32 offset);
@@ -139,8 +147,8 @@ public:
     
     
     
-    
-
+    static VkCommandPoolCreateInfo command_pool_create_info(u32 queue_family_index);
+    static VkCommandBufferAllocateInfo command_buffer_allocate_info(VkCommandPool command_pool, VkCommandBufferLevel level);
     
     
 

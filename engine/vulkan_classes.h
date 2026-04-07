@@ -110,7 +110,17 @@ void Pool<Object_Type>::destroy(Handle<Object_Type> handle)
     object_count--;
 }
 
+struct Shader_Module_Desc
+{
+    size_t data_size = 0;
+    void const* data = nullptr;
+};
 
+struct Shader_Module_State
+{
+    VkShaderModule module = VK_NULL_HANDLE;
+    u32 push_constants_size = 0;
+};
 
 
 
@@ -118,19 +128,20 @@ void Pool<Object_Type>::destroy(Handle<Object_Type> handle)
 
 class Context;
 
-using Shader_Module_Handle = Handle<VkShaderModule>;
+using Shader_Module_Handle = Handle<Shader_Module_State>;
+using Graphics_Pipeline_Handle = Handle<Graphics_Pipeline_State>;
 
 template <typename Handle_Type>
 class RAII_Wrapper
 {
 public:
-    RAII_Wrapper(Context const& context, Handle_Type const& handle) : context(context), handle(handle)
+    RAII_Wrapper(Context* context, Handle_Type const& handle) : context(context), handle(handle)
     {
     }
 
 
 private:
-    Context& context;
+    Context* context = nullptr;
     Handle_Type handle = {};
 };
 
@@ -144,28 +155,6 @@ private:
 
 
 
-enum class Shader_Stage
-{
-    VERTEX,
-    FRAGMENT,
-    COMPUTE
-
-    // Stage_Vert,
-    // Stage_Tesc,
-    // Stage_Tese,
-    // Stage_Geom,
-    // Stage_Frag,
-    // Stage_Comp,
-    // Stage_Task,
-    // Stage_Mesh,
-    // // ray tracing
-    // Stage_RayGen,
-    // Stage_AnyHit,
-    // Stage_ClosestHit,
-    // Stage_Miss,
-    // Stage_Intersection,
-    // Stage_Callable,
-};
 
 
 
@@ -254,12 +243,25 @@ struct Graphics_Pipeline_Desc
     VkPolygonMode polygon_mode = VK_POLYGON_MODE_FILL;
 };
 
+struct Graphics_Pipeline_State
+{
+    Graphics_Pipeline_Desc desc;
+
+    VkPipeline handle = VK_NULL_HANDLE;
+    VkShaderStageFlags stages = 0;
+  VkPipelineLayout pipelineLayout_ = VK_NULL_HANDLE;
+}
 
 struct Context
 {
 public:
+    VkInstance instance = VK_NULL_HANDLE;
     VkDevice device;
-    VkPhysicalDeviceProperties2 physical_device_properties;
+
+    VkPhysicalDeviceDepthStencilResolveProperties physical_device_depth_stencil_resolve_properties = Vulkan_Struct_Initializers::physical_device_depth_stencil_resolve_properties();
+    VkPhysicalDeviceDriverProperties physical_device_driver_properties = Vulkan_Struct_Initializers::physical_device_driver_properties(&physical_device_depth_stencil_resolve_properties);
+    VkPhysicalDeviceVulkan12Properties physical_device_vulkan_1_2_properties = Vulkan_Struct_Initializers::physical_device_vulkan_1_2_properties(&physical_device_driver_properties);
+    VkPhysicalDeviceProperties2 physical_device_properties_2 = Vulkan_Struct_Initializers::physical_device_properties_2(&physical_device_vulkan_1_2_properties);
 
 
 
@@ -268,13 +270,13 @@ public:
 
 
 
-    VkShaderModule create_shader_module_from_SPIRV(std::vector<u32 const> byte_code);
-    VkShaderModule create_shader_module_from_GLSL(VkShaderStageFlagBits shader_stage, std::string const& source_code);
+    RAII_Wrapper<Shader_Module_Handle> create_shader_module(Shader_Module_Desc const& desc);
 
     VkPipeline create_graphics_pipeline(Graphics_Pipeline_Desc const& desc);
 
 private:
-    Pool<VkShaderModule> shader_module_pool;
+    Pool<Shader_Module_State> shader_module_pool;
+    Pool<Graphics_Pipeline_Handle> graphics_pipeline_pool;
 
 
 
@@ -289,7 +291,7 @@ private:
 #ifdef _DEBUG
     VkDebugUtilsMessengerCreateInfoEXT debugMessengerCreateInfo = {};
 #endif
-    VkInstance instance = VK_NULL_HANDLE;
+    
     VkSurfaceKHR surface = VK_NULL_HANDLE;
 
     // struct {

@@ -1,5 +1,27 @@
-#include "CommandBuffer.h"
+#include "command_buffer.h"
+
 #include "Utils.h"
+#include "vulkan_struct_initializers.h"
+
+
+namespace engine
+{
+
+Command_Buffer::Command_Buffer(Command_Pool const& command_pool, VkCommandBufferLevel level) : command_pool(command_pool)
+{
+    auto allocate_info = Vulkan_Struct_Initializers::command_buffer_allocate_info((this->command_pool).handle, level);
+    handle = device.allocate_command_buffer(allocate_info);
+}
+
+Command_Buffer::~Command_Buffer()
+{
+    if (handle != VK_NULL_HANDLE)
+    {
+        device.free_command_buffer(command_pool.handle, handle);
+    }
+}
+
+
 
 void CommandBufferManager::Init(Context const& context)
 {
@@ -24,4 +46,6 @@ void CommandBufferManager::Init(Context const& context)
         allocateInfo.commandBufferCount = FRAMES_IN_FLIGHT;
         VK_CHECK(vkAllocateCommandBuffers(context.device.handle, &allocateInfo, &commandBuffers[i]));
     }
+}
+
 }

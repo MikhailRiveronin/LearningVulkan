@@ -1,5 +1,7 @@
 #include "vulkan_classes.h"
 
+#include "third_party/SPIRV-Reflect/spirv_reflect.h"
+
 #include "vulkan_struct_initializers.h"
 #include "utils.h"
 
@@ -8,6 +10,10 @@ namespace engine
 
 Context::Context()
 {
+    VK_CHECK(volkInitialize());
+
+    volkLoadInstance(instance);
+
     glslang_initialize_process();
 }
 
@@ -16,20 +22,27 @@ Context::~Context()
     glslang_finalize_process();
 }
 
-VkShaderModule Context::create_shader_module_from_SPIRV(std::vector<u32 const> byte_code)
+RAII_Wrapper<Shader_Module_Handle> Context::create_shader_module(Shader_Module_Desc const& desc)
 {
-    VkShaderModule shader_module;
-    auto create_info = Vulkan_Struct_Initializers::shader_module_create_info(byte_code);
-    VK_CHECK(vkCreateShaderModule(device, &create_info, allocation_callbacks, &shader_module));
-    assert(shader_module != VK_NULL_HANDLE);
-    return shader_module;
-}
+    Shader_Module_State state;
+    auto create_info = Vulkan_Struct_Initializers::shader_module_create_info(desc.data_size, desc.data);
+    VK_CHECK(vkCreateShaderModule(device, &create_info, allocation_callbacks, &state.module));
 
-VkShaderModule Context::create_shader_module_from_GLSL(VkShaderStageFlagBits shader_stage, std::string const& source_code)
-{
-    auto glslang_resource = Vulkan_Struct_Initializers::glslang_resource(physical_device_properties.properties.limits);
-    auto spirv = compile_GLSL_to_SPIRV(shader_stage, source_code, &glslang_resource);
-    return create_shader_module_from_SPIRV(spirv);
+    SpvReflectShaderModule reflect_module;
+    auto result = spvReflectCreateShaderModule(desc.data_size, desc.data, &reflect_module);
+    if (spvReflectCreateShaderModule(desc.data_size, desc.data, &reflect_module) != SPV_REFLECT_RESULT_SUCCESS)
+    {
+        // TODO: Handle error
+    }
+    SCOPE_EXIT { spvReflectDestroyShaderModule(&reflect_module); };
+
+    for (u32 i = 0; i < reflect_module.push_constant_block_count; ++i)
+    {
+        auto& block = reflect_module.push_constant_blocks[i];
+        state.push_constants_size = std::max(state.push_constants_size, block.offset + block.size);
+    }
+
+    return { this, shader_module_pool.create(std::move(state)) };
 }
 
 VkPipeline Context::create_graphics_pipeline(Graphics_Pipeline_Desc const& desc)
@@ -64,13 +77,30 @@ VkPipeline Context::create_graphics_pipeline(Graphics_Pipeline_Desc const& desc)
     auto vert_module = shader_module_pool.get(desc.vert);
     auto frag_module = shader_module_pool.get(desc.frag);
 
-    std::vector<VkSpecializationMapEntry> specialization_map_entries;
-    for (auto& entry : desc.spec_constant_desc.entries)
+    auto& spec_constant_desc = desc.spec_constant_desc;
+    std::vector<VkSpecializationMapEntry> spec_map_entries(spec_constant_desc.entries.size());
+    for (u32 i = 0; i < spec_map_entries.size(); ++i)
     {
-        specialization_map_entries.push_back(Vulkan_Struct_Initializers::specialization_map_entry(entry.constant_id, entry.offset, entry.size));
+        auto& entry = spec_constant_desc.entries[i];
+        spec_map_entries[i] = Vulkan_Struct_Initializers::specialization_map_entry(entry.constant_id, entry.offset, entry.size);
     };
+    auto spec_info = Vulkan_Struct_Initializers::specialization_info(spec_map_entries, spec_constant_desc.data_size, spec_constant_desc.data);
 
-    auto specialization_info = Vulkan_Struct_Initializers::specialization_info(specialization_map_entries, desc.spec_constant_desc.data_size, desc.spec_constant_desc.data);
+    Graphics_Pipeline_State pipeline_state;
+#define UPDATE_PUSH_CONSTANT_SIZE(stage, shader_module)                                          \
+    if (shader_module)                                                                           \
+    {                                                                                            \
+        pipeline_state.stages |= stage;                                                          \
+        push_constants_size = std::max(push_constants_size, shader_module->push_constants_size); \
+    }
+
+    u32 push_constants_size = 0;
+    UPDATE_PUSH_CONSTANT_SIZE(VK_SHADER_STAGE_VERTEX_BIT, vert_module);
+    UPDATE_PUSH_CONSTANT_SIZE(VK_SHADER_STAGE_FRAGMENT_BIT, frag_module);
+#undef UPDATE_PUSH_CONSTANT_SIZE
+    assert(push_constants_size <= physical_device_properties_2.limits);
+
+    
 
 
 }

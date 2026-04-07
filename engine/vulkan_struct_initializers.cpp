@@ -2,6 +2,50 @@
 
 #include "utils.h"
 
+VkPhysicalDeviceDepthStencilResolveProperties Vulkan_Struct_Initializers::physical_device_depth_stencil_resolve_properties()
+{
+    return
+    {
+        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DEPTH_STENCIL_RESOLVE_PROPERTIES,
+        .pNext = nullptr,
+        .supportedDepthResolveModes = 0,
+        .supportedStencilResolveModes = 0,
+        .independentResolveNone = VK_FALSE,
+        .independentResolve = VK_FALSE
+    };
+}
+
+VkPhysicalDeviceDriverProperties Vulkan_Struct_Initializers::physical_device_driver_properties(void* next)
+{
+    return
+    {
+        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DRIVER_PROPERTIES,
+        .pNext = next,
+        .driverID = {},
+        .driverName = "",
+        .driverInfo = "",
+        .conformanceVersion = {}
+    };
+}
+
+VkPhysicalDeviceVulkan12Properties Vulkan_Struct_Initializers::physical_device_vulkan_1_2_properties(void* next)
+{
+    return
+    {
+        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_PROPERTIES,
+        .pNext = next
+    };
+}
+
+VkPhysicalDeviceProperties2 Vulkan_Struct_Initializers::physical_device_properties_2(void* next)
+{
+    return
+    {
+        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2,
+        .pNext = next
+    };
+}
+
 VkDebugUtilsMessengerCreateInfoEXT Vulkan_Struct_Initializers::debug_utils_messenger_create_info(PFN_vkDebugUtilsMessengerCallbackEXT user_callback)
 {
     VkDebugUtilsMessengerCreateInfoEXT create_info;
@@ -375,15 +419,16 @@ VkMemoryAllocateInfo Vulkan_Struct_Initializers::memory_allocate_info(VkDeviceSi
 
 
 
-VkShaderModuleCreateInfo Vulkan_Struct_Initializers::shader_module_create_info(std::vector<u32 const> const& byte_code)
+VkShaderModuleCreateInfo Vulkan_Struct_Initializers::shader_module_create_info(size_t code_size, void const* code)
 {
-    VkShaderModuleCreateInfo create_info = {};
-    create_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-    create_info.pNext = nullptr;
-    create_info.flags = 0;
-    create_info.codeSize = byte_code.size() * sizeof(u32);
-    create_info.pCode = byte_code.data();
-    return create_info;
+    return
+    {
+        .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+        .pNext = nullptr,
+        .flags = 0,
+        .codeSize = code_size,
+        .pCode = reinterpret_cast<u32 const*>(code)
+    };
 }
 
 VkPipelineShaderStageCreateInfo Vulkan_Struct_Initializers::pipeline_shader_stage_create_info(VkShaderStageFlagBits stage, VkShaderModule module)
@@ -793,7 +838,28 @@ VkWriteDescriptorSet Vulkan_Struct_Initializers::write_descriptor_set(VkDescript
 
 
 
+VkCommandPoolCreateInfo Vulkan_Struct_Initializers::command_pool_create_info(u32 queue_family_index)
+{
+    return VkCommandPoolCreateInfo
+    {
+        .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+        .pNext = nullptr,
+        .flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT,
+        .queueFamilyIndex = queue_family_index
+    };
+}
 
+VkCommandBufferAllocateInfo Vulkan_Struct_Initializers::command_buffer_allocate_info(VkCommandPool command_pool, VkCommandBufferLevel level)
+{
+    return VkCommandBufferAllocateInfo
+    {
+        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+        .pNext = nullptr,
+        .commandPool = command_pool,
+        .level = level,
+        .commandBufferCount = 1
+    };
+}
 
 
 

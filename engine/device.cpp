@@ -3,6 +3,9 @@
 #include "logger.h"
 #include "vulkan_struct_initializers.h"
 
+namespace engine
+{
+
 static VKAPI_ATTR VkBool32 VKAPI_CALL debug_utils_messenger_callback(VkDebugUtilsMessageSeverityFlagBitsEXT message_severity, VkDebugUtilsMessageTypeFlagsEXT message_type, VkDebugUtilsMessengerCallbackDataEXT const* callback_data, void* user_data);
 
 Device::Device()
@@ -146,6 +149,35 @@ VkBool32 debug_utils_messenger_callback(VkDebugUtilsMessageSeverityFlagBitsEXT m
     }
 
     return VK_FALSE;
+}
+
+
+
+
+
+
+VkCommandPool Device::create_command_pool(VkCommandPoolCreateInfo const& create_info)
+{
+    VkCommandPool command_pool;
+    VK_CHECK(vkCreateCommandPool(handle, &create_info, &allocation_callbacks, &command_pool));
+    return command_pool;
+}
+
+void Device::destroy_command_pool(VkCommandPool command_pool)
+{
+    vkDestroyCommandPool(handle, command_pool, &allocation_callbacks);
+}
+
+VkCommandBuffer Device::allocate_command_buffer(VkCommandBufferAllocateInfo const& allocate_info)
+{
+    VkCommandBuffer command_buffer;
+    VK_CHECK(vkAllocateCommandBuffers(handle, &allocate_info, &command_buffer));
+    return command_buffer;
+}
+
+void Device::free_command_buffer(VkCommandPool command_pool, VkCommandBuffer command_buffer)
+{
+    vkFreeCommandBuffers(handle, command_pool, 1, &command_buffer);
 }
 
 
@@ -303,3 +335,4 @@ void checkRequiredDeviceExtensionsSupport(VkPhysicalDevice physicalDevice, std::
     }
 }
 
+} // namespace engine

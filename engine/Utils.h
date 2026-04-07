@@ -44,7 +44,7 @@ bool compile_shader_from_source(Shader_Stage stage, char const* code, );
 
 
 
-RAII_Wrapper<Shander_Module_Handle> create_shader_module(Context const& context, std::string const& filename);
+RAII_Wrapper<Shader_Module_Handle> create_shader_module(Context const& context, std::string const& filename);
 
 
 

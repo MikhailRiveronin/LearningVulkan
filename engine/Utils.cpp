@@ -120,7 +120,7 @@ Shader_Stage shader_stage_from_filename(std::string const& filename)
     return Shader_Stage::VERTEX;
 }
 
-RAII_Wrapper<Shander_Module_Handle> create_shader_module(Context const& context, std::string const& filename)
+RAII_Wrapper<Shader_Module_Handle> create_shader_module(Context const& context, std::string const& filename)
 {
     auto stage = shader_stage_from_filename(filename);
     auto source = read_GLSL_from_file(filename);
